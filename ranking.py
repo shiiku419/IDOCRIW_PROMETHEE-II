@@ -27,7 +27,7 @@ def ranking(flow):
     return
 
 # Function: IDOCRIW
-def idocriw_method(dataset, criterion_type, size = 20, gen = 12000, graph = True):
+def idocriw_method(dataset, criterion_type):
     X    = np.copy(dataset)
     X    = X/X.sum(axis = 0)
     X_ln = np.copy(dataset)
@@ -229,7 +229,7 @@ dataset = np.array([
 Q = [ 0.3,  0.3,  0.3,  0.3,  0.3,  0.3,  0.3]
 S = [ 0.4,  0.4,  0.4,  0.4,  0.4,  0.4,  0.4]
 P = [ 0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5]
-W = idocriw_method(dataset, criterion_type, size = 20, gen = 5000, graph = True)
+W = idocriw_method(dataset, criterion_type)
 F = ['t6', 't6', 't6', 't6', 't6', 't6', 't6']
 
 # Call Promethee II

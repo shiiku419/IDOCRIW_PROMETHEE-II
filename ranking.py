@@ -158,7 +158,7 @@ def preference_degree(dataset, W, Q, S, P, F):
                             elif (distance_array[i,j] > S[k] ):
                                 distance_array[i,j] = 1
             pd_array = pd_array + softmax(W[w], axis=0)[k]*distance_array
-        pd_array = pd_array/sum(softmax(W[w], axis=0))
+        pd_array = pd_array/sum(W[w])
     return pd_array
 
 # Function: Rank 

@@ -63,38 +63,6 @@ def idocriw_method(dataset, criterion_type):
     np.fill_diagonal(WP, -P.sum(axis = 0))
     #print(WP)
     return WP
-    
-'''
-    def target_function(variable = [0]*WP.shape[1]):
-        variable = [variable[i]/sum(variable) for i in range(0, len(variable))]
-        WP_s     = np.copy(WP)
-        for i in range(0, WP.shape[0]):
-            for j in range(0, WP.shape[1]):
-                WP_s[i, j] = WP_s[i, j]*variable[j]
-        total = abs(WP_s.sum(axis = 1)) 
-        total = sum(total) 
-        return total
-    
-    solution = genetic_algorithm(population_size = size, mutation_rate = 0.1, elite = 1, min_values = [0]*WP.shape[1], max_values = [1]*WP.shape[1], eta = 1, mu = 1, generations = gen, target_function = target_function)
-    solution = solution[:-1]
-    solution = solution/sum(solution)
-    w_       = np.copy(w)
-    w_       = w_*solution
-    w_       = w_/w_.sum()
-    w_       = w_.T
-    for i in range(0, w_.shape[0]):
-        print('a' + str(i+1) + ': ' + str(round(w_[i][0], 4)))
-    if ( graph == True):
-        flow = np.copy(w_)
-        flow = np.reshape(flow, (w_.shape[0], 1))
-        flow = np.insert(flow, 0, list(range(1, w_.shape[0]+1)), axis = 1)
-        flow = flow[np.argsort(flow[:, 1])]
-        flow = flow[::-1]
-        ranking(flow)
-    return w_
-'''
-
-###############################################################################
 
 # Function: Distance Matrix
 def distance_matrix(dataset, criteria = 0):
@@ -214,11 +182,11 @@ criterion_type = ['max', 'max', 'max', 'min', 'min', 'min', 'min']
 
 # Dataset
 dataset = np.array([
-                    [75.5, 420,	 74.2, 2.8,	 21.4,	0.37,	 0.16],   #a1
-                    [95,   91,	 70,	 2.68, 22.1,	0.33,	 0.16],   #a2
-                    [770,  1365, 189,	 7.9,	 16.9,	0.04,	 0.08],   #a3
-                    [187,  1120, 210,	 7.9,	 14.4,	0.03,	 0.08],   #a4
-                    [179,  875,	 112,	 4.43,	9.4,	0.016, 0.09],   #a5
+                    [75.5, 420,	 74.2,   2.8,	21.4,	0.37,	 0.16],   #a1
+                    [95,   91,	 70,	 2.68,  22.1,	0.33,	 0.16],   #a2
+                    [770,  1365, 189,	 7.9,	16.9,	0.04,	 0.08],   #a3
+                    [187,  1120, 210,	 7.9,	14.4,	0.03,	 0.08],   #a4
+                    [179,  875,	 112,	 4.43,	9.4,	0.016,   0.09],   #a5
                     [239,  1190, 217,	 8.51,	11.5,	0.31,	 0.07],   #a6
                     [273,  200,	 112,	 8.53,	19.9,	0.29,	 0.06]    #a7
                     ])

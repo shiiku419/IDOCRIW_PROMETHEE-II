@@ -1,5 +1,6 @@
 # Required Libraries
 import csv
+import random
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -174,28 +175,40 @@ criterion_type = ['max', 'max', 'max', 'min', 'min', 'min', 'min']
 
 # Dataset
 dataset = np.array([
-    [75.5, 420,	 74.2,   2.8,	21.4,	0.37,	 0.16],  # a1
-    [95,   91,	 70,	 2.68,  22.1,	0.33,	 0.16],  # a2
+    [75.5, 420,	 200,    2.8,	21.4,	0.37,	 0.16],  # a1
+    [95,   900,	 170,	 2.68,  22.1,	0.33,	 0.16],  # a2
     [770,  1365, 189,	 7.9,	16.9,	0.04,	 0.08],  # a3
     [187,  1120, 210,	 7.9,	14.4,	0.03,	 0.08],  # a4
-    [179,  875,	 112,	 4.43,	9.4,	0.016,   0.09],  # a5
+    [179,  875,	 112,	 4.43,	9.4,	0.41,    0.09],  # a5
     [239,  1190, 217,	 8.51,	11.5,	0.31,	 0.07],  # a6
-    [273,  200,	 112,	 8.53,	19.9,	0.29,	 0.06],  # a7
+    [273,  1200, 112,	 8.53,	19.9,	0.29,	 0.06],  # a7
 ])
 
+
 # Parameters
-Q = [0.3,  0.3,  0.3,  0.3,  0.3,  0.3,  0.3]
-S = [0.4,  0.4,  0.4,  0.4,  0.4,  0.4,  0.4]
-P = [0.5,  0.5,  0.5,  0.5,  0.5,  0.5,  0.5]
 W = idocriw_method(dataset, criterion_type)
-F = ['t6', 't6', 't6', 't6', 't6', 't6', 't6']
+pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
-# Call Promethee II
-p2 = promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
-                  sort=True, topn=10, graph=False)
+p = {}
 
+for i in range(5):
+    Q = []
+    S = []
+    P = []
+    F = []
+    for j in range(7):
+        P.append(random.randint(1, 10)/10)
+        Q.append(random.uniform(0, P[j]))
+        F.append(pref[random.randint(0, 5)])
+        S.append(P[j]-Q[j])
+    p[i] = promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
+                        sort=True, topn=10, graph=False)
+
+
+'''
 f = open('out2.csv', 'w', newline='')
 data = W
 writer = csv.writer(f)
 writer.writerows(data)
 f.close()
+'''

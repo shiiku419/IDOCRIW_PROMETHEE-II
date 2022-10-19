@@ -175,7 +175,14 @@ def promethee_ii(dataset, W, Q, S, P, F, sort = True, topn = 0, graph = False):
         ranking(flow)
     return flow
 
-
+def calc_satisfaction(frm, to, i_rank, g_rank):
+    result = 0
+    satisfaction = 0
+    for i in range(frm, to+1):
+        result += i
+    bottom = to**3 - to
+    satisfaction = 1 - (6 * result * abs(i_rank - g_rank))/bottom
+    print(satisfaction)
 
 # Criterion Type: 'max' or 'min'
 criterion_type = ['max', 'max', 'max', 'min', 'min', 'min', 'min']

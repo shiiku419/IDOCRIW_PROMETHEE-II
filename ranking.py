@@ -160,14 +160,26 @@ def promethee_ii(dataset, W, Q, S, P, F, sort=True, topn=0, graph=False):
     return flow
 
 
-def calc_satisfaction(frm, to, i_rank, g_rank):
+def calc_satisfaction(p, frm, to):
     result = 0
     satisfaction = 0
+    i_rank = p
+    g_rank = calc_group_rank(p)
     for i in range(frm, to+1):
         result += i
     bottom = to**3 - to
     satisfaction = 1 - (6 * result * abs(i_rank - g_rank))/bottom
     print(satisfaction)
+
+
+def calc_group_rank(p):
+    group_rank = np.copy(p[0])
+    for i in range(1, len(p)):
+        group_rank += p[i]
+    group_rank = group_rank/len(p)
+    group_rank = group_rank[np.argsort(group_rank[:, 1])]
+    print(group_rank)
+    return group_rank
 
 
 # Criterion Type: 'max' or 'min'
@@ -202,8 +214,10 @@ for i in range(5):
         F.append(pref[random.randint(0, 5)])
         S.append(P[j]-Q[j])
     p[i] = promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
-                        sort=True, topn=10, graph=False)
+                        sort=False, topn=10, graph=False)
 
+print(p[0])
+calc_group_rank(p)
 
 '''
 f = open('out2.csv', 'w', newline='')

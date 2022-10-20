@@ -160,16 +160,26 @@ def promethee_ii(dataset, W, Q, S, P, F, sort=True, topn=0, graph=False):
     return flow
 
 
-def calc_satisfaction(p, frm, to):
+def distance(j, g_rank):
+    return abs(j - g_rank)**2
+
+
+def calc_satisfaction(func, p, frm, to):
     result = 0
     satisfaction = 0
-    i_rank = p
-    g_rank = calc_group_rank(p)
-    for i in range(frm, to+1):
-        result += i
-    bottom = to**3 - to
-    satisfaction = 1 - (6 * result * abs(i_rank - g_rank))/bottom
-    print(satisfaction)
+    g_ranks = calc_group_rank(p)
+    for i in range(0, len(p)):
+        print('DM'+str(i+1))
+
+        i_ranks = p[i][np.argsort(p[1][:, 1])]
+
+        for j in range(frm, to+1):
+            g_rank = np.where(g_ranks == i_ranks[j-1][0])[0][0] + 1
+            result += func(j, g_rank)
+
+        bottom = to**3 - to
+        satisfaction = 1 - 6 * result / bottom
+        print(satisfaction)
 
 
 def calc_group_rank(p):
@@ -178,7 +188,6 @@ def calc_group_rank(p):
         group_rank += p[i]
     group_rank = group_rank/len(p)
     group_rank = group_rank[np.argsort(group_rank[:, 1])]
-    print(group_rank)
     return group_rank
 
 
@@ -216,8 +225,7 @@ for i in range(5):
     p[i] = promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                         sort=False, topn=10, graph=False)
 
-print(p[0])
-calc_group_rank(p)
+calc_satisfaction(distance, p, 1, 7)
 
 '''
 f = open('out2.csv', 'w', newline='')

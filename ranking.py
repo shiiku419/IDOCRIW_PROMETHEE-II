@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import softmax
 
-
+'''
 def ranking(flow):
     rank_xy = np.zeros((flow.shape[0], 2))
     for i in range(0, rank_xy.shape[0]):
@@ -29,6 +29,7 @@ def ranking(flow):
     plt.axis('off')
     plt.show()
     return
+'''
 
 
 def idocriw_method(dataset, criterion_type):

@@ -129,11 +129,9 @@ def promethee_ii(dataset, W, Q, S, P, F, sort=True, topn=0, graph=False):
     if (topn > 0):
         if (topn > pd_matrix.shape[0]):
             topn = pd_matrix.shape[0]
-        for i in range(0, topn):
-            print('alternative' +
-                  str(int(flow[i, 0])) + ': ' + str(round(flow[i, 1], 3)))
-    if (graph == True):
-        ranking(flow)
+        # for i in range(0, topn):
+            # print('alternative' + str(int(flow[i, 0])) + ': ' + str(round(flow[i, 1], 3)))
+    print(flow)
     return flow
 
 
@@ -144,10 +142,11 @@ def distance(j, g_rank):
 def calc_satisfaction(func, p, frm, to):
     result = 0
     satisfaction = 0
+    group_satisfaction = 0
+    satisfaction_index = []
     g_ranks = calc_group_rank(p)
     for i in range(0, len(p)):
-        print('DM'+str(i+1))
-
+        # print('DM'+str(i+1))
         i_ranks = p[i][np.argsort(p[1][:, 1])]
 
         for j in range(frm, to+1):
@@ -156,7 +155,9 @@ def calc_satisfaction(func, p, frm, to):
 
         bottom = to**3 - to
         satisfaction = 1 - 6 * result / bottom
-        print(satisfaction)
+        group_satisfaction += satisfaction
+        satisfaction_index += [satisfaction]
+    return satisfaction_index
 
 
 def calc_group_rank(p):
@@ -190,19 +191,15 @@ pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 p = {}
 
 for i in range(5):
-    Q = []
-    S = []
-    P = []
-    F = []
-    for j in range(7):
-        P.append(random.randint(1, 10)/10)
-        Q.append(random.uniform(0, P[j]))
-        F.append(pref[random.randint(0, 5)])
-        S.append(P[j]-Q[j])
+    P = [random.randint(1, 10)/10 for _ in range(7)]
+    Q = [random.uniform(0, P[j]) for j in range(7)]
+    S = [(P[j]-Q[j]) for j in range(7)]
+    F = [pref[random.randint(0, 5)] for _ in range(7)]
+
     p[i] = promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                         sort=False, topn=10, graph=False)
 
-calc_satisfaction(distance, p, 1, 7)
+index = calc_satisfaction(distance, p, 1, 7)
 
 '''
 f = open('out2.csv', 'w', newline='')

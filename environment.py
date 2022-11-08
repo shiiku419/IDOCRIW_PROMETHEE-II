@@ -27,10 +27,9 @@ dataset = np.array([
 
 class Environment(gym.core.Env):
 
-    def __init__(self, dataset, player_id, n_member=7):
+    def __init__(self, dataset, n_member=7):
         self.dataset = dataset
         self.n_member = n_member
-        self.player_id = player_id
         self.n_action = 10
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
         self.observation_space = gym.spaces.Box(

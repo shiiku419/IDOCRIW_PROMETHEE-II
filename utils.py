@@ -10,6 +10,9 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 
+Transition = namedtuple(
+    'Transition', ('state', 'action', 'next_state', 'reward'))
+
 
 class ReplayMemory:
 

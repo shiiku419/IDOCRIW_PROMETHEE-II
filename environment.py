@@ -1,17 +1,9 @@
 import gym.spaces
 import numpy as np
-import matplotlib as plt
-from collections import namedtuple
 import random
 import math
 from scipy.special import softmax
-import torch
-from torch import nn
-from torch import optim
-import torch.nn.functional as F
-
-Transition = namedtuple(
-    'Transition', ('state', 'action', 'next_state', 'reward'))
+from agent import Agents
 
 # Dataset
 dataset = np.array([
@@ -27,24 +19,29 @@ dataset = np.array([
 
 class Environment(gym.core.Env):
 
-    def __init__(self, dataset, n_member=7):
+    def __init__(self, dataset=dataset, n_member=7):
         self.dataset = dataset
         self.n_member = n_member
         self.n_action = 10
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
         self.observation_space = gym.spaces.Box(
-            low=-10, high=10, shape=(self.n_action))  # 観測データの取りうる値
+            low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
+
+        self.num_states = self.observation_space.shape[0]
+        self.num_actions = self.action_space.n
+
         self.time = 0
         self.max_step = 20
-        self.convergence = []
+        self.agents = [Agents(i, self.num_states, self.num_actions)
+                       for i in range(self.n_member)]
         self.params = {}
 
-    def step(self, action, n_member):
+    def step(self, action):
         self.time += 1
         self.ranking = self.change_ranking(
             action, self.dataset, self.criterion_type)
-        observation = self.get_observation()
-        reward = self.get_reward(self.ranking, n_member)
+        observation = self.get_observation(self.ranking)
+        reward = self.get_reward(self.ranking, self.n_member)
         done = self.check_is_done()
         info = {}
         return observation, reward, done, info
@@ -52,7 +49,7 @@ class Environment(gym.core.Env):
     def reset(self):
         self.time = 0
         self.ranking = self.get_ranking(self.dataset, self.criterion_type)
-        return self.get_observation()
+        return self.get_observation(self.ranking)
 
     def close(self):
         pass
@@ -67,8 +64,8 @@ class Environment(gym.core.Env):
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, self.n_member)
 
-        self.params['pre_psi'] = psi[self.player_id]
-        self.params['post_psi'] = post_psi[self.player_id]
+        self.params['pre_psi'] = psi[self.agents.agent_id]
+        self.params['post_psi'] = post_psi[self.agents.agent_id]
         self.params['pre_gsi'] = gsi
         self.params['post_gsi'] = post_gsi
 
@@ -135,7 +132,7 @@ class Environment(gym.core.Env):
         # print(WP)
         return WP
 
-    def distance_matrix(dataset, criteria=0):
+    def distance_matrix(self, dataset, criteria=0):
         distance_array = np.zeros(shape=(dataset.shape[0], dataset.shape[0]))
         for i in range(0, distance_array.shape[0]):
             for j in range(0, distance_array.shape[1]):
@@ -245,7 +242,7 @@ class Environment(gym.core.Env):
             satisfaction_index += [satisfaction]
         return satisfaction_index, group_satisfaction
 
-    def calc_group_rank(p):
+    def calc_group_rank(self, p):
         group_rank = np.copy(p[0])
         for i in range(1, len(p)):
             group_rank += p[i]
@@ -279,6 +276,7 @@ class Environment(gym.core.Env):
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         p = {}
+        print(action)
 
         for i in range(5):
             P = action['P']

@@ -59,6 +59,7 @@ def preference_degree(dataset, W, Q, S, P, F):
     for w in range(0, dataset.shape[1]):
         W[w] = softmax(W[w], axis=0)
         for k in range(0, dataset.shape[1]):
+            print(k)
             distance_array = distance_matrix(dataset, criteria=k)
             for i in range(0, distance_array.shape[0]):
                 for j in range(0, distance_array.shape[1]):

@@ -291,7 +291,7 @@ class Environment(gym.core.Env):
         for i in range(7):
             #P = action
             #Q = action
-            P = action/10
+            P = [action[i][0] for i in range(len(action))]
             Q = [random.uniform(0, P[j]) for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
             #F = [pref[action['pref']]]

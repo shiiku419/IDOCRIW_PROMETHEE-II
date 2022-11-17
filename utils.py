@@ -18,15 +18,17 @@ class ReplayMemory:
 
     def __init__(self, CAPACITY):
         self.capacity = CAPACITY
-        self.memory = []
+        self.memory = [[] for _ in range(7)]
+        print(self.memory)
         self.index = 0
 
-    def push(self, state, action, state_next, reward):
+    def push(self, state, action, state_next, reward, agent_id):
 
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
+        if len(self.memory[agent_id]) < self.capacity:
+            self.memory[agent_id].append(None)
 
-        self.memory[self.index] = Transition(state, action, state_next, reward)
+        self.memory[agent_id][self.index] = Transition(
+            state, action, state_next, reward)
 
         self.index = (self.index + 1) % self.capacity
 

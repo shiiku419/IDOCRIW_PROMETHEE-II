@@ -14,5 +14,5 @@ class Agents:
         action = self.brain.decide_action(state, episode)
         return action
 
-    def memorize(self, state, action, state_next, reward):
-        self.brain.memory.push(state, action, state_next, reward)
+    def memorize(self, state, action, state_next, reward, agent_id):
+        self.brain.memory.push(state, action, state_next, reward, agent_id)

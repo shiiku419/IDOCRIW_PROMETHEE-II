@@ -43,10 +43,9 @@ class Brain:
 
         print(agent_id)
         state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(torch.tensor(batch.action))
+        action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
         print(state_batch.shape)
-        print(len(batch.action))
         print(action_batch.shape)
         print(reward_batch.shape)
         non_final_next_states = torch.cat([s for s in batch.next_state
@@ -54,8 +53,7 @@ class Brain:
 
         self.model.eval()
 
-        state_action_values = self.model(state_batch).gather(
-            1, action_batch.type(torch.int64))
+        state_action_values = self.model(state_batch).gather(1, action_batch)
 
         non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None,
                                                     batch.next_state)))

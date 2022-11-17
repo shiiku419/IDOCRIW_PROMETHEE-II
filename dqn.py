@@ -20,31 +20,10 @@ class DQN:
         num_actions = self.env.action_space.n
         self.agents = [Agents(i, num_states, num_actions)
                        for i in range(self.env.n_member)]
-    '''
-    def run(self):
-
-        for episode in range(200):
-            observation = self.env.reset()  # 環境の初期化
-
-            state = observation  # 観測をそのまま状態sとして使用
-            print(state)
-            state = torch.from_numpy(state).type(
-                torch.FloatTensor)  # NumPy変数をPyTorchのテンソルに変換
-            state = torch.unsqueeze(state, 0)  # size 4をsize 1x4に変換
-            print(state)
-            action = [self.agents[i].get_action(state, episode) for i in range(
-                len(self.agents))]
-
-            print(vars(action[0]))
-            for i in range(len(action)):
-                obs, re, done, info = self.env.step(action[i], i)
-            # if done:
-               # self.env.reset()
-    '''
 
     def run2(self):
 
-        for episode in range(2000):  # 最大試行数分繰り返す
+        for episode in range(20000):  # 最大試行数分繰り返す
             observation = self.env.reset()  # 環境の初期化
 
             state = observation  # 観測をそのまま状態sとして使用
@@ -55,14 +34,15 @@ class DQN:
 
             for step in range(20):  # 1エピソードのループ
 
-                action = [self.agents[i].get_action(state, episode) for i in range(
-                    len(self.agents))]
-
                 # 行動a_tの実行により、s_{t+1}とdoneフラグを求める
                 # actionから.item()を指定して、中身を取り出す
-                for i in range(len(self.agents)-1):
+
+                for i in range(len(self.agents)):
+
+                    action = self.agents[i].get_action(state, episode)
+
                     observation_next, _, done, _ = self.env.step(
-                        action[i], i)  # rewardとinfoは使わないので_にする
+                        (action/10).tolist(), i)  # rewardとinfoは使わないので_にする
 
                     # 報酬を与える。さらにepisodeの終了評価と、state_nextを設定する
                     if done:  # ステップ数が200経過するか、一定角度以上傾くとdoneはtrueになる
@@ -85,7 +65,8 @@ class DQN:
                             state_next, 0)  # size 4をsize 1x4に変換
 
                     # メモリに経験を追加
-                    self.agents[i].memorize(state, action, state_next, reward)
+                    self.agents[i].memorize(
+                        state, action, state_next, reward, agent_id=i)
 
                     # Experience ReplayでQ関数を更新する
                     self.agents[i].update_q_function()
@@ -93,7 +74,11 @@ class DQN:
                     # 観測の更新
                     state = state_next
 
-                # 終了時の処理
+                    # 終了時の処理
+                    if done:
+                        print('end')
+                        break
+
                 if done:
                     break
 

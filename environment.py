@@ -2,6 +2,8 @@ import gym.spaces
 import numpy as np
 import random
 import math
+import torch
+from pytest import param
 from scipy.special import softmax
 from agent import Agents
 
@@ -22,34 +24,36 @@ class Environment(gym.core.Env):
     def __init__(self, dataset=dataset, n_member=7):
         self.dataset = dataset
         self.n_member = n_member
-        self.n_action = 10
+        self.n_action = n_member
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
         self.observation_space = gym.spaces.Box(
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
-        self.num_states = self.observation_space.shape[0]
-        self.num_actions = self.action_space.n
-
         self.time = 0
         self.max_step = 20
-        self.agents = [Agents(i, self.num_states, self.num_actions)
-                       for i in range(self.n_member)]
+
+        self.first_ranking = self.get_ranking(
+            self.dataset, self.criterion_type)
+
+        self.ranking = self.first_ranking.copy()
+
         self.params = {}
 
-    def step(self, action):
+    def step(self, action, id):
         self.time += 1
         self.ranking = self.change_ranking(
-            action, self.dataset, self.criterion_type)
+            id, action, self.dataset, self.criterion_type)
         observation = self.get_observation(self.ranking)
-        reward = self.get_reward(self.ranking, self.n_member)
+        reward = self.get_reward(self.params, id)
         done = self.check_is_done()
         info = {}
         return observation, reward, done, info
 
     def reset(self):
         self.time = 0
-        self.ranking = self.get_ranking(self.dataset, self.criterion_type)
-        return self.get_observation(self.ranking)
+        self.first_ranking = self.get_ranking(
+            self.dataset, self.criterion_type)
+        return self.get_observation(self.first_ranking)
 
     def close(self):
         pass
@@ -57,25 +61,26 @@ class Environment(gym.core.Env):
     def seed(self):
         pass
 
-    def get_satisfaction(self):
+    def get_satisfaction(self, id):
         psi, gsi = self.calc_satisfaction(
-            self.distance, self.get_ranking(self.dataset, self.criterion_type), 1, self.n_member)
+            self.distance, self.first_ranking, 1, self.n_member)
 
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, self.n_member)
 
-        self.params['pre_psi'] = psi[self.agents.agent_id]
-        self.params['post_psi'] = post_psi[self.agents.agent_id]
+        self.params['pre_psi'] = psi[id]
+        self.params['post_psi'] = post_psi[id]
         self.params['pre_gsi'] = gsi
         self.params['post_gsi'] = post_gsi
 
         return self.params
 
-    def get_reward(self, params, n_member):
-        self.params = self.get_satisfaction()
+    def get_reward(self, params, id):
+        params = self.get_satisfaction(id)
+        print(params)
 
-        pre_psi = params['pre_psi'][n_member]
-        post_psi = params['post_psi'][n_member]
+        pre_psi = params['pre_psi']
+        post_psi = params['post_psi']
         pre_gsi = params['pre_gsi']
         post_gsi = params['post_gsi']
 
@@ -85,11 +90,15 @@ class Environment(gym.core.Env):
         sub_reward = post_gsi - pre_gsi
 
         # 補助報酬　倍率未定
-        reward += 1.0 * main_reward + 0.1 * (sub_reward / n_member)
+        reward += 1.0 * main_reward + 0.1 * (sub_reward / self.n_member)
+
+        self.first_ranking = self.ranking
+
         return reward
 
     def get_observation(self, p):
         observation = self.calc_group_rank(p)
+        # print(observation)
         return observation
 
     def check_is_done(self):
@@ -216,10 +225,10 @@ class Environment(gym.core.Env):
                 topn = pd_matrix.shape[0]
             # for i in range(0, topn):
                 # print('alternative' + str(int(flow[i, 0])) + ': ' + str(round(flow[i, 1], 3)))
-        print(flow)
+        # print(flow)
         return flow
 
-    def distance(j, g_rank):
+    def distance(self, j, g_rank):
         return abs(j - g_rank)**2
 
     def calc_satisfaction(self, func, p, frm, to):
@@ -261,7 +270,7 @@ class Environment(gym.core.Env):
 
         p = {}
 
-        for i in range(5):
+        for i in range(7):
             P = [random.randint(1, 10)/10 for _ in range(7)]
             Q = [random.uniform(0, P[j]) for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
@@ -271,18 +280,22 @@ class Environment(gym.core.Env):
                                      sort=False, topn=10, graph=False)
         return p
 
-    def change_ranking(self, action, dataset, criterion_type):
+    def change_ranking(self, id, action, dataset, criterion_type):
         W = self.idocriw_method(dataset, criterion_type)
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         p = {}
-        print(action)
 
-        for i in range(5):
-            P = action['P']
-            Q = action['Q']
+        # print(action/10)
+
+        for i in range(7):
+            #P = action
+            #Q = action
+            P = action/10
+            Q = [random.uniform(0, P[j]) for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
-            F = [pref[action['pref']]]
+            #F = [pref[action['pref']]]
+            F = [pref[random.randint(0, 5)] for _ in range(7)]
 
             p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                                      sort=False, topn=10, graph=False)

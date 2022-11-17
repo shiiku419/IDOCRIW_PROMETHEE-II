@@ -1,4 +1,5 @@
 from brain import Brain
+import torch
 
 
 class Agents:
@@ -7,7 +8,7 @@ class Agents:
         self.agent_id = agent_id
 
     def update_q_function(self):
-        self.brain.replay()
+        self.brain.replay(self.agent_id)
 
     def get_action(self, state, episode):
         action = self.brain.decide_action(state, episode)

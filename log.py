@@ -1,7 +1,7 @@
 from torch.utils.tensorboard import SummaryWriter
+from data_logger import DataLogger
 
-
-class TensorboardLogger():
+class TensorboardLogger(DataLogger):
 
     def __init__(self, writer=None):
         if writer is None:
@@ -11,7 +11,7 @@ class TensorboardLogger():
                 "Only `SummaryWriter` class is allowed for the Tensorboard logger")
         self.writer = writer
 
-    def log_value(self, name, value, step) -> None:
+    def log_value(self, name:str, value, step:int) -> None:
         self.writer.add_scalar(name, value, step)
 
     # writerを閉じる

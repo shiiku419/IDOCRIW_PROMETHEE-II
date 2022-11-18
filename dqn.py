@@ -21,11 +21,12 @@ class DQN:
         num_actions = self.env.action_space.n
         self.agents = [Agents(i, num_states, num_actions)
                        for i in range(self.env.n_member)]
+        self.logger = TensorboardLogger()
         self.iter_no = 0
 
     def run2(self):
 
-        for episode in range(20000):  # 最大試行数分繰り返す
+        for episode in range(2000):  # 最大試行数分繰り返す
             observation = self.env.reset()  # 環境の初期化
 
             state = observation  # 観測をそのまま状態sとして使用
@@ -66,8 +67,8 @@ class DQN:
                         state_next = torch.unsqueeze(
                             state_next, 0)  # size 4をsize 1x4に変換
 
-                    TensorboardLogger.log_value('state'+str(i), state, step)
-                    TensorboardLogger.log_value('reward'+str(i), reward, step)
+                    self.logger.log_value('state'+str(i), state.squeeze().ndim, step)
+                    self.logger.log_value('reward'+str(i), reward, step)
 
                     # メモリに経験を追加
                     self.agents[i].memorize(
@@ -86,6 +87,10 @@ class DQN:
 
                 if done:
                     break
+            print('epispde'+str(episode))
+
+            if episode == 2000:
+                TensorboardLogger.close()
 
 
 if __name__ == "__main__":

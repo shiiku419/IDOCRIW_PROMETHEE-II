@@ -26,6 +26,8 @@ class Brain:
         #self.model.add_module('fc2', nn.Linear(1, 1))
         self.model.add_module('relu2', nn.ReLU())
         self.model.add_module('fc3', nn.Linear(2, num_actions))
+
+        self.logger = TensorboardLogger()
         self.number = 0
 
         # print(self.model)  # ネットワークの形を出力
@@ -69,7 +71,7 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
-        TensorboardLogger.log_value('log', loss, self.number)
+        self.logger.log_value('log', loss, self.number)
 
         # 4.3 結合パラメータを更新する
         self.optimizer.zero_grad()  # 勾配をリセット

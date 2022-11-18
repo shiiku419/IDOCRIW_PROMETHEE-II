@@ -77,7 +77,9 @@ class Environment(gym.core.Env):
 
     def get_reward(self, params, id):
         params = self.get_satisfaction(id)
-        print(params)
+
+        #pre psi
+        #print(params)
 
         pre_psi = params['pre_psi']
         post_psi = params['post_psi']

@@ -19,7 +19,6 @@ class ReplayMemory:
     def __init__(self, CAPACITY):
         self.capacity = CAPACITY
         self.memory = [[] for _ in range(7)]
-        print(self.memory)
         self.index = 0
 
     def push(self, state, action, state_next, reward, agent_id):

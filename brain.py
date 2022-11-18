@@ -5,6 +5,7 @@ from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from utils import ReplayMemory, Transition
+from log import TensorboardLogger
 
 
 class Brain:
@@ -25,6 +26,7 @@ class Brain:
         #self.model.add_module('fc2', nn.Linear(1, 1))
         self.model.add_module('relu2', nn.ReLU())
         self.model.add_module('fc3', nn.Linear(2, num_actions))
+        self.number = 0
 
         # print(self.model)  # ネットワークの形を出力
 
@@ -41,13 +43,10 @@ class Brain:
 
         batch = Transition(*zip(*transitions))
 
-        print(agent_id)
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
-        print(state_batch.shape)
-        print(action_batch.shape)
-        print(reward_batch.shape)
+
         non_final_next_states = torch.cat([s for s in batch.next_state
                                            if s is not None])
 
@@ -70,10 +69,14 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
+        TensorboardLogger.log_value('log', loss, self.number)
+
         # 4.3 結合パラメータを更新する
         self.optimizer.zero_grad()  # 勾配をリセット
         loss.backward()  # バックプロパゲーションを計算
         self.optimizer.step()  # 結合パラメータを更新
+
+        self.number += 1
 
     def decide_action(self, state, episode):
         '''現在の状態に応じて、行動を決定する'''

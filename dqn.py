@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from agent import Agents
 from environment import Environment
+from log import TensorboardLogger
 
 
 class DQN:
@@ -20,6 +21,7 @@ class DQN:
         num_actions = self.env.action_space.n
         self.agents = [Agents(i, num_states, num_actions)
                        for i in range(self.env.n_member)]
+        self.iter_no = 0
 
     def run2(self):
 
@@ -63,6 +65,9 @@ class DQN:
                             torch.FloatTensor)  # numpy変数をPyTorchのテンソルに変換
                         state_next = torch.unsqueeze(
                             state_next, 0)  # size 4をsize 1x4に変換
+
+                    TensorboardLogger.log_value('state'+str(i), state, step)
+                    TensorboardLogger.log_value('reward'+str(i), reward, step)
 
                     # メモリに経験を追加
                     self.agents[i].memorize(

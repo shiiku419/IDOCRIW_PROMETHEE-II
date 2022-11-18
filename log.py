@@ -1,24 +1,19 @@
-import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
 
-# データを作る
-np.random.seed(123)
-x = np.random.randn(100)
-y = x.cumsum()  # xの累積和
+class TensorboardLogger():
 
-# ここではmatplotlib での以下に相当するものをTensorBoard で表示します。
-# t = np.arange(100)
-# plt.plot(t, x)
-# plt.plot(t, y)
+    def __init__(self, writer=None):
+        if writer is None:
+            writer = SummaryWriter(log_dir="./logs")
+        if not isinstance(writer, SummaryWriter):
+            raise ValueError(
+                "Only `SummaryWriter` class is allowed for the Tensorboard logger")
+        self.writer = writer
 
-# log_dirでlogのディレクトリを指定
-writer = SummaryWriter(log_dir="./logs")
+    def log_value(self, name, value, step) -> None:
+        self.writer.add_scalar(name, value, step)
 
-# xとyの値を記録していく
-for i in range(100):
-    writer.add_scalar("x", x[i], i)
-    writer.add_scalar("y", y[i], i)
-
-# writerを閉じる
-writer.close()
+    # writerを閉じる
+    def close(self):
+        self.writer.close()

@@ -9,6 +9,7 @@ import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
+from collections import deque
 
 Transition = namedtuple(
     'Transition', ('state', 'action', 'next_state', 'reward'))
@@ -18,15 +19,15 @@ class ReplayMemory:
 
     def __init__(self, CAPACITY):
         self.capacity = CAPACITY
-        self.memory = [[] for _ in range(7)]
+        self.memory = deque()
         self.index = 0
 
-    def push(self, state, action, state_next, reward, agent_id):
+    def push(self, state, action, state_next, reward):
 
-        if len(self.memory[agent_id]) < self.capacity:
-            self.memory[agent_id].append(None)
+        if len(self.memory) < self.capacity:
+            self.memory.append(None)
 
-        self.memory[agent_id][self.index] = Transition(
+        self.memory[self.index] = Transition(
             state, action, state_next, reward)
 
         self.index = (self.index + 1) % self.capacity

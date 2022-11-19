@@ -12,6 +12,8 @@ class TensorboardLogger(DataLogger):
         self.writer = writer
 
     def log_value(self, name:str, value, step:int) -> None:
+        if name == 'loss':
+            print(name)
         self.writer.add_scalar(name, value, step)
 
     # writerを閉じる

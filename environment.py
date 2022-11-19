@@ -2,10 +2,7 @@ import gym.spaces
 import numpy as np
 import random
 import math
-import torch
-from pytest import param
 from scipy.special import softmax
-from agent import Agents
 
 # Dataset
 dataset = np.array([
@@ -29,7 +26,7 @@ class Environment(gym.core.Env):
         self.observation_space = gym.spaces.Box(
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
-        self.time = 0
+        self.time = 0                                     
         self.max_step = 20
 
         self.first_ranking = self.get_ranking(
@@ -43,7 +40,7 @@ class Environment(gym.core.Env):
         self.time += 1
         self.ranking = self.change_ranking(
             id, action, self.dataset, self.criterion_type)
-        observation = self.get_observation(self.ranking)
+        observation = self.get_observation(self.ranking)    
         reward = self.get_reward(self.params, id)
         done = self.check_is_done()
         info = {}
@@ -288,15 +285,10 @@ class Environment(gym.core.Env):
 
         p = {}
 
-        # print(action/10)
-
         for i in range(7):
-            #P = action
-            #Q = action
-            P = [action[i][0] for i in range(len(action))]
+            P = action
             Q = [random.uniform(0, P[j]) for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
-            #F = [pref[action['pref']]]
             F = [pref[random.randint(0, 5)] for _ in range(7)]
 
             p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,

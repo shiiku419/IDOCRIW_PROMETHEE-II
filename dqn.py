@@ -1,12 +1,4 @@
-import gym.spaces
-import numpy as np
-import matplotlib as plt
-from collections import namedtuple
-import random
-import math
-from scipy.special import softmax
 import torch
-import torch.nn.functional as F
 from agent import Agents
 from environment import Environment
 from log import TensorboardLogger
@@ -26,14 +18,11 @@ class DQN:
 
     def run2(self):
 
-        for episode in range(2000):  # 最大試行数分繰り返す
+        for episode in range(100):  # 最大試行数分繰り返す
             observation = self.env.reset()  # 環境の初期化
 
-            state = observation  # 観測をそのまま状態sとして使用
-            state = torch.from_numpy(state).type(
-                torch.FloatTensor)  # NumPy変数をPyTorchのテンソルに変換
-
-            state = torch.unsqueeze(state, 0)  # size 4をsize 1x4に変換
+            state = torch.from_numpy(observation).float()  # 観測をそのまま状態sとして使用
+            print(state)
 
             for step in range(20):  # 1エピソードのループ
 
@@ -42,10 +31,12 @@ class DQN:
 
                 for i in range(len(self.agents)):
 
+                    print(state)
+
                     action = self.agents[i].get_action(state, episode)
 
                     observation_next, _, done, _ = self.env.step(
-                        (action/10).tolist(), i)  # rewardとinfoは使わないので_にする
+                        action, i)  # rewardとinfoは使わないので_にする
 
                     # 報酬を与える。さらにepisodeの終了評価と、state_nextを設定する
                     if done:  # ステップ数が200経過するか、一定角度以上傾くとdoneはtrueになる
@@ -70,9 +61,11 @@ class DQN:
                     self.logger.log_value('state'+str(i), state.squeeze().ndim, step)
                     self.logger.log_value('reward'+str(i), reward, step)
 
+                    self.logger.writer.flush()
+
                     # メモリに経験を追加
                     self.agents[i].memorize(
-                        state, action, state_next, reward, agent_id=i)
+                        state, action, state_next, reward)
 
                     # Experience ReplayでQ関数を更新する
                     self.agents[i].update_q_function()
@@ -82,7 +75,6 @@ class DQN:
 
                     # 終了時の処理
                     if done:
-                        print('end')
                         break
 
                 if done:

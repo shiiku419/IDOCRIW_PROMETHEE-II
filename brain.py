@@ -6,6 +6,7 @@ from torch import optim
 import torch.nn.functional as F
 from utils import ReplayMemory, Transition
 from log import TensorboardLogger
+#from dqn import TensorboardLogger
 
 
 class Brain:
@@ -21,11 +22,11 @@ class Brain:
 
         # ニューラルネットワークを構築
         self.model = nn.Sequential()
-        #self.model.add_module('fc1', nn.Linear(num_states, 1))
+        self.model.add_module('fc1', nn.Linear(num_states, 32))
         self.model.add_module('relu1', nn.ReLU())
-        #self.model.add_module('fc2', nn.Linear(1, 1))
+        self.model.add_module('fc2', nn.Linear(32, 32))
         self.model.add_module('relu2', nn.ReLU())
-        self.model.add_module('fc3', nn.Linear(2, num_actions))
+        self.model.add_module('fc3', nn.Linear(32, num_actions))
 
         self.logger = TensorboardLogger()
         self.number = 0
@@ -35,7 +36,7 @@ class Brain:
         # 最適化手法の設定
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
 
-    def replay(self, agent_id):
+    def replay(self):
         '''Experience Replayでネットワークの結合パラメータを学習'''
 
         if len(self.memory) < self.BATCH_SIZE:
@@ -46,7 +47,7 @@ class Brain:
         batch = Transition(*zip(*transitions))
 
         state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
+        action_batch = torch.cat(batch.action).type(torch.int64) 
         reward_batch = torch.cat(batch.reward)
 
         non_final_next_states = torch.cat([s for s in batch.next_state
@@ -54,7 +55,7 @@ class Brain:
 
         self.model.eval()
 
-        state_action_values = self.model(state_batch).gather(1, action_batch)
+        state_action_values = self.model(state_batch).gather(2, action_batch)
 
         non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None,
                                                     batch.next_state)))
@@ -71,7 +72,10 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
-        self.logger.log_value('log', loss, self.number)
+        print('loss')
+        print(loss)
+
+        self.logger.log_value('loss', loss, self.number)
 
         # 4.3 結合パラメータを更新する
         self.optimizer.zero_grad()  # 勾配をリセット
@@ -86,13 +90,17 @@ class Brain:
         epsilon = 0.5 * (1 / (episode + 1))
 
         if epsilon <= np.random.uniform(0, 1):
+            print(state)
             self.model.eval()  # ネットワークを推論モードに切り替える
             with torch.no_grad():
-                action = self.model(state).max(1)[1].view(7, 1)  # 1,1
+                print(state)
+                action = self.model(state).max(1)[1].view(32,7) # 1,1
+                action = action/10
         else:
             # 0,1の行動をランダムに返す
             action = torch.tensor(
                 [[random.random() for _ in range(self.num_actions)]])  # 0,1の行動をランダムに返す
             # actionは[torch.LongTensor of size 1x1]の形になります
-            action = action.view(7, 1)
+            action = action.view(7)
+            print(action)
         return action

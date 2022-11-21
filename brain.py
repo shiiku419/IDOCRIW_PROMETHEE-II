@@ -10,16 +10,14 @@ from log import TensorboardLogger
 
 class Brain:
     def __init__(self, num_states, num_actions, BATCH_SIZE=32, CAPACITY=10000, GAMMA=0.99):
-        self.num_actions = num_actions  # CartPoleの行動（右に左に押す）の2を取得
+        self.num_actions = num_actions  
 
         self.BATCH_SIZE = BATCH_SIZE
         self.CAPACITY = CAPACITY
         self.GAMMA = GAMMA
 
-        # 経験を記憶するメモリオブジェクトを生成
         self.memory = ReplayMemory(CAPACITY)
 
-        # ニューラルネットワークを構築
         self.model = nn.Sequential()
         #self.model.add_module('fc1', nn.Linear(num_states, 1))
         self.model.add_module('relu1', nn.ReLU())
@@ -30,9 +28,8 @@ class Brain:
         self.logger = TensorboardLogger()
         self.number = 0
 
-       # print(self.model)  # ネットワークの形を出力
+       # print(self.model) 
 
-        # 最適化手法の設定
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
 
     def replay(self, id):
@@ -76,20 +73,18 @@ class Brain:
 
         self.logger.log_value('loss', loss, self.number)
 
-        # 4.3 結合パラメータを更新する
-        self.optimizer.zero_grad()  # 勾配をリセット
-        loss.backward()  # バックプロパゲーションを計算
-        self.optimizer.step()  # 結合パラメータを更新
+        self.optimizer.zero_grad()  
+        loss.backward() 
+        self.optimizer.step() 
 
         self.number += 1
 
     def decide_action(self, state, episode):
         '''現在の状態に応じて、行動を決定する'''
-        # ε-greedy法で徐々に最適行動のみを採用する
         epsilon = 0.5 * (1 / (episode + 1))
 
         if epsilon <= np.random.uniform(0, 1):
-            self.model.eval()  # ネットワークを推論モードに切り替える
+            self.model.eval()  
             with torch.no_grad():
                 action = self.model(state).max(1)[1].view(1,7) # 1,1
                 #action = action/10

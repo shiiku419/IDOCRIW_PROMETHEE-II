@@ -88,8 +88,8 @@ class Environment(gym.core.Env):
 
         reward = 0
 
-        main_reward = post_psi - pre_psi
-        sub_reward = post_gsi - pre_gsi
+        main_reward = post_psi
+        sub_reward = post_gsi
 
         # 補助報酬　倍率未定
         reward += 1.0 * main_reward + 0.1 * (sub_reward / self.n_member)

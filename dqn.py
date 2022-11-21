@@ -19,13 +19,13 @@ class DQN:
 
     def run2(self):
 
-        for episode in range(100):  # 最大試行数分繰り返す
-            observation = self.env.reset()  # 環境の初期化
+        for episode in range(101):  
+            observation = self.env.reset()  
             observation = np.delete(observation, 0, 1)
 
             state = torch.from_numpy(observation).float()
 
-            for step in range(20):  # 1エピソードのループ
+            for step in range(20):  
 
                 for i in range(self.env.n_member):
 
@@ -36,30 +36,26 @@ class DQN:
 
                     reward = torch.FloatTensor([reward])
 
-                    if done:  # ステップ数が200経過するか、一定角度以上傾くとdoneはtrueになる
-                        state_next = None  # 次の状態はないので、Noneを格納
+                    if done:  
+                        state_next = None  
 
                     else:
-                        state_next = observation_next  # 観測をそのまま状態とする
+                        state_next = observation_next  
                         state_next = np.delete(state_next, 0, 1)
                         state_next = torch.from_numpy(state_next).float()
 
-                    self.logger.log_value('state'+str(i), state.squeeze().ndim, step)
+                    print(reward)
                     self.logger.log_value('reward'+str(i), reward, step)
 
                     self.logger.writer.flush()
 
-                    # メモリに経験を追加
                     self.agents[i].memorize(
                         state, action, state_next, reward, i)
 
-                    # Experience ReplayでQ関数を更新する
                     self.agents[i].update_q_function(i)
 
-                    # 観測の更新
                     state = state_next
 
-                    # 終了時の処理
                     if done:
                         break
 
@@ -69,7 +65,7 @@ class DQN:
             print('epispde'+str(episode))
 
             if episode == 100:
-                TensorboardLogger.close()
+                self.logger.close()
 
 
 if __name__ == "__main__":

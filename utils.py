@@ -1,14 +1,5 @@
-import gym.spaces
-import numpy as np
-import matplotlib as plt
 from collections import namedtuple
 import random
-import math
-from scipy.special import softmax
-import torch
-from torch import nn
-from torch import optim
-import torch.nn.functional as F
 from collections import deque
 
 Transition = namedtuple(
@@ -19,21 +10,21 @@ class ReplayMemory:
 
     def __init__(self, CAPACITY):
         self.capacity = CAPACITY
-        self.memory = deque()
+        self.memory = [[] for _ in range(7)]
         self.index = 0
 
-    def push(self, state, action, state_next, reward):
+    def push(self, state, action, state_next, reward, id):
 
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
+        if len(self.memory[id]) < self.capacity:
+            self.memory[id].append(None)
 
-        self.memory[self.index] = Transition(
+        self.memory[id][self.index] = Transition(
             state, action, state_next, reward)
 
         self.index = (self.index + 1) % self.capacity
 
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
+    def sample(self, batch_size, id):
+        return random.sample(self.memory[id], batch_size)
 
     def __len__(self):
         return len(self.memory)

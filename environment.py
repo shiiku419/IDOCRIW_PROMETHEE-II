@@ -50,7 +50,8 @@ class Environment(gym.core.Env):
         self.time = 0
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
-        return self.get_observation(self.first_ranking)
+        observation = self.get_observation(self.first_ranking)
+        return observation
 
     def close(self):
         pass
@@ -69,6 +70,8 @@ class Environment(gym.core.Env):
         self.params['post_psi'] = post_psi[id]
         self.params['pre_gsi'] = gsi
         self.params['post_gsi'] = post_gsi
+
+        # print(id, self.params)
 
         return self.params
 
@@ -286,7 +289,7 @@ class Environment(gym.core.Env):
         p = {}
 
         for i in range(7):
-            P = action
+            P = action.view(7)/10
             Q = [random.uniform(0, P[j]) for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
             F = [pref[random.randint(0, 5)] for _ in range(7)]

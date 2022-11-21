@@ -6,7 +6,6 @@ from torch import optim
 import torch.nn.functional as F
 from utils import ReplayMemory, Transition
 from log import TensorboardLogger
-#from dqn import TensorboardLogger
 
 
 class Brain:
@@ -22,27 +21,27 @@ class Brain:
 
         # ニューラルネットワークを構築
         self.model = nn.Sequential()
-        self.model.add_module('fc1', nn.Linear(num_states, 32))
+        #self.model.add_module('fc1', nn.Linear(num_states, 1))
         self.model.add_module('relu1', nn.ReLU())
-        self.model.add_module('fc2', nn.Linear(32, 32))
+        self.model.add_module('fc2', nn.Linear(1, 1))
         self.model.add_module('relu2', nn.ReLU())
-        self.model.add_module('fc3', nn.Linear(32, num_actions))
+        self.model.add_module('fc3', nn.Linear(1, num_actions))
 
         self.logger = TensorboardLogger()
         self.number = 0
 
-        # print(self.model)  # ネットワークの形を出力
+       # print(self.model)  # ネットワークの形を出力
 
         # 最適化手法の設定
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
 
-    def replay(self):
+    def replay(self, id):
         '''Experience Replayでネットワークの結合パラメータを学習'''
 
         if len(self.memory) < self.BATCH_SIZE:
             return
 
-        transitions = self.memory.sample(self.BATCH_SIZE)
+        transitions = self.memory.sample[id](self.BATCH_SIZE)
 
         batch = Transition(*zip(*transitions))
 
@@ -55,7 +54,7 @@ class Brain:
 
         self.model.eval()
 
-        state_action_values = self.model(state_batch).gather(2, action_batch)
+        state_action_values = self.model(state_batch).gather(1, action_batch)
 
         non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None,
                                                     batch.next_state)))
@@ -90,17 +89,12 @@ class Brain:
         epsilon = 0.5 * (1 / (episode + 1))
 
         if epsilon <= np.random.uniform(0, 1):
-            print(state)
             self.model.eval()  # ネットワークを推論モードに切り替える
             with torch.no_grad():
-                print(state)
-                action = self.model(state).max(1)[1].view(32,7) # 1,1
-                action = action/10
+                action = self.model(state).max(1)[1].view(1,7) # 1,1
+                #action = action/10
         else:
-            # 0,1の行動をランダムに返す
             action = torch.tensor(
-                [[random.random() for _ in range(self.num_actions)]])  # 0,1の行動をランダムに返す
-            # actionは[torch.LongTensor of size 1x1]の形になります
-            action = action.view(7)
-            print(action)
+                [[random.random() for _ in range(self.num_actions)]])
+            action = action.view(1,7)
         return action

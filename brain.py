@@ -10,7 +10,7 @@ from log import TensorboardLogger
 
 class Brain:
     def __init__(self, num_states, num_actions, BATCH_SIZE=32, CAPACITY=10000, GAMMA=0.99):
-        self.num_actions = num_actions  
+        self.num_actions = num_actions
 
         self.BATCH_SIZE = BATCH_SIZE
         self.CAPACITY = CAPACITY
@@ -19,31 +19,31 @@ class Brain:
         self.memory = ReplayMemory(CAPACITY)
 
         self.model = nn.Sequential()
-        #self.model.add_module('fc1', nn.Linear(num_states, 1))
+        self.model.add_module('fc1', nn.Linear(num_states, 36))
         self.model.add_module('relu1', nn.ReLU())
-        self.model.add_module('fc2', nn.Linear(1, 1))
+        self.model.add_module('fc2', nn.Linear(36, 36))
         self.model.add_module('relu2', nn.ReLU())
-        self.model.add_module('fc3', nn.Linear(1, num_actions))
+        self.model.add_module('fc3', nn.Linear(36, num_actions*7))
 
         self.logger = TensorboardLogger()
         self.number = 0
 
-       # print(self.model) 
+        # print(self.model)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
 
     def replay(self, id):
         '''Experience Replayでネットワークの結合パラメータを学習'''
 
-        if len(self.memory) < self.BATCH_SIZE:
+        if len(self.memory.memory[id]) < self.BATCH_SIZE:
             return
 
-        transitions = self.memory.sample[id](self.BATCH_SIZE)
+        transitions = self.memory.sample(self.BATCH_SIZE, id)
 
         batch = Transition(*zip(*transitions))
 
         state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action).type(torch.int64) 
+        action_batch = torch.cat(batch.action).type(torch.int64)
         reward_batch = torch.cat(batch.reward)
 
         non_final_next_states = torch.cat([s for s in batch.next_state
@@ -68,28 +68,24 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
-        print('loss')
-        print(loss)
+        self.logger.log_value('loss'+str(id), loss, self.number)
 
-        self.logger.log_value('loss', loss, self.number)
-
-        self.optimizer.zero_grad()  
-        loss.backward() 
-        self.optimizer.step() 
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
         self.number += 1
 
     def decide_action(self, state, episode):
-        '''現在の状態に応じて、行動を決定する'''
         epsilon = 0.5 * (1 / (episode + 1))
 
         if epsilon <= np.random.uniform(0, 1):
-            self.model.eval()  
+            self.model.eval()
             with torch.no_grad():
-                action = self.model(state).max(1)[1].view(1,7) # 1,1
+                action = self.model(state).view(7, 7).max(1)[1]  # 1,1
                 #action = action/10
         else:
             action = torch.tensor(
                 [[random.random() for _ in range(self.num_actions)]])
-            action = action.view(1,7)
+            action = action.view(7)
         return action

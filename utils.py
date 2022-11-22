@@ -18,6 +18,7 @@ class ReplayMemory:
         if len(self.memory[id]) < self.capacity:
             self.memory[id].append(None)
 
+        action = action.view(1, 7)
         self.memory[id][self.index] = Transition(
             state, action, state_next, reward)
 

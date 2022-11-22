@@ -19,38 +19,37 @@ class DQN:
 
     def run2(self):
 
-        for episode in range(101):  
-            observation = self.env.reset()  
+        for episode in range(20001):
+            observation = self.env.reset()
             observation = np.delete(observation, 0, 1)
 
-            state = torch.from_numpy(observation).float()
+            state = torch.from_numpy(observation).float().view(1, 7)
 
-            for step in range(20):  
+            for step in range(20):
 
                 for i in range(self.env.n_member):
 
                     action = self.agents[i].get_action(state, episode)
 
                     observation_next, reward, done, _ = self.env.step(
-                        action, i)  
+                        action, i)
 
                     reward = torch.FloatTensor([reward])
 
-                    if done:  
-                        state_next = None  
-
-                    else:
-                        state_next = observation_next  
-                        state_next = np.delete(state_next, 0, 1)
-                        state_next = torch.from_numpy(state_next).float()
-
-                    print(reward)
-                    self.logger.log_value('reward'+str(i), reward, step)
-
+                    self.logger.log_value('agent'+str(i), reward, episode)
                     self.logger.writer.flush()
 
+                    if done:
+                        state_next = None
+
+                    else:
+                        state_next = observation_next
+                        state_next = np.delete(state_next, 0, 1)
+                        state_next = torch.from_numpy(
+                            state_next).float().view(1, 7)
+
                     self.agents[i].memorize(
-                        state, action, state_next, reward, i)
+                        state, action.view(1, 7), state_next, reward, i)
 
                     self.agents[i].update_q_function(i)
 
@@ -60,11 +59,12 @@ class DQN:
                         break
 
                 if done:
+                    step += 1
                     break
 
             print('epispde'+str(episode))
 
-            if episode == 100:
+            if episode < 20000:
                 self.logger.close()
 
 

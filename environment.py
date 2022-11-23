@@ -26,8 +26,8 @@ class Environment(gym.core.Env):
         self.observation_space = gym.spaces.Box(
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
-        self.time = 0                                     
-        self.max_step = 20
+        self.time = 0
+        self.max_step = 100*n_member
 
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
@@ -40,10 +40,10 @@ class Environment(gym.core.Env):
         self.time += 1
         self.ranking = self.change_ranking(
             id, action, self.dataset, self.criterion_type)
-        observation = self.get_observation(self.ranking)    
+        observation = self.get_observation(self.ranking)
         reward = self.get_reward(self.params, id)
         done = self.check_is_done()
-        info = {}
+        info = {'gsi': self.params['post_gsi']}
         return observation, reward, done, info
 
     def reset(self):
@@ -78,8 +78,8 @@ class Environment(gym.core.Env):
     def get_reward(self, params, id):
         params = self.get_satisfaction(id)
 
-        #pre psi
-        #print(params)
+        # pre psi
+        # print(params)
 
         pre_psi = params['pre_psi']
         post_psi = params['post_psi']

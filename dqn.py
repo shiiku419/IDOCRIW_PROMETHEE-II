@@ -19,7 +19,7 @@ class DQN:
 
     def run2(self):
 
-        for episode in range(20001):
+        for episode in range(2001):
             observation = self.env.reset()
             observation = np.delete(observation, 0, 1)
 
@@ -27,17 +27,21 @@ class DQN:
 
             for step in range(20):
 
+                rewards = {}
+
                 for i in range(self.env.n_member):
 
                     action = self.agents[i].get_action(state, episode)
 
-                    observation_next, reward, done, _ = self.env.step(
+                    observation_next, reward, done, info = self.env.step(
                         action, i)
 
                     reward = torch.FloatTensor([reward])
 
-                    self.logger.log_value('agent'+str(i), reward, episode)
-                    self.logger.writer.flush()
+                    rewards[i] = reward
+
+                    self.logger.log_value(
+                        'agnet/gsi', {'gsi': info['gsi']}, episode)
 
                     if done:
                         state_next = None
@@ -58,13 +62,17 @@ class DQN:
                     if done:
                         break
 
+                self.logger.log_value(
+                    'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
+                self.logger.writer.flush()
+
                 if done:
                     step += 1
                     break
 
             print('epispde'+str(episode))
 
-            if episode < 20000:
+            if episode < 2000:
                 self.logger.close()
 
 

@@ -68,7 +68,8 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
-        self.logger.log_value('loss'+str(id), loss, self.number)
+        self.logger.log_value(
+            'agent/loss', {'agent'+str(id): loss}, self.number)
 
         self.optimizer.zero_grad()
         loss.backward()

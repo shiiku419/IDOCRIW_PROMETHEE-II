@@ -51,7 +51,8 @@ class Brain:
 
         self.model.eval()
 
-        state_action_values = self.model(state_batch).gather(1, action_batch)
+        state_action_values = self.model(
+            state_batch).gather(1, action_batch).max(1)[0].unsqueeze(1)
 
         non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None,
                                                     batch.next_state)))

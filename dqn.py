@@ -27,7 +27,11 @@ class DQN:
 
             episode_reward = [0 for _ in range(self.env.n_member)]
 
+            step_size = 0
+
             for step in range(100):
+
+                step_size += 1
 
                 rewards = {}
 
@@ -79,6 +83,9 @@ class DQN:
 
             self.logger.log_value(
                 'agent/step_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
+
+            self.logger.log_value(
+                'step_size', {'step_size': step_size}, episode)
 
             if episode < 10000:
                 self.logger.close()

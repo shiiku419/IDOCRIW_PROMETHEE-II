@@ -4,22 +4,11 @@ import random
 import math
 from scipy.special import softmax
 
-# Dataset
-dataset = np.array([
-    [75.5, 420,	 200,    2.8,	21.4,	0.37,	 0.16],  # a1
-    [95,   900,	 170,	 2.68,  22.1,	0.33,	 0.16],  # a2
-    [770,  1365, 189,	 7.9,	16.9,	0.04,	 0.08],  # a3
-    [187,  1120, 210,	 7.9,	14.4,	0.03,	 0.08],  # a4
-    [179,  875,	 112,	 4.43,	9.4,	0.41,    0.09],  # a5
-    [239,  1190, 217,	 8.51,	11.5,	0.31,	 0.07],  # a6
-    [273,  1200, 112,	 8.53,	19.9,	0.29,	 0.06],  # a7
-])
-
 
 class Environment(gym.core.Env):
 
-    def __init__(self, dataset=dataset, n_member=7):
-        self.dataset = dataset
+    def __init__(self, n_member=7):
+        self.dataset = np.random.rand(7, 7) + 0.01
         self.n_member = n_member
         self.n_action = n_member
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
@@ -29,6 +18,11 @@ class Environment(gym.core.Env):
         self.time = 0
         self.max_step = 100*n_member
 
+        self.P = []
+        self.Q = []
+        self.S = []
+        self.F = []
+
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
 
@@ -36,18 +30,20 @@ class Environment(gym.core.Env):
 
         self.params = {}
 
-    def step(self, action, id):
+    def step(self, action, subaction, id):
         self.time += 1
         self.ranking = self.change_ranking(
-            id, action, self.dataset, self.criterion_type)
+            action, subaction, self.dataset, self.criterion_type)
         observation = self.get_observation(self.ranking)
-        reward = self.get_reward(self.params, id)
-        done = self.check_is_done()
+        reward = self.reward_shaping(
+            self.params, self.get_reward(self.params, id))
+        done = self.check_is_done(reward)
         info = {'gsi': self.params['post_gsi']}
         return observation, reward, done, info
 
     def reset(self):
         self.time = 0
+        self.dataset = np.random.rand(7, 7) + 0.01
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
         observation = self.get_observation(self.first_ranking)
@@ -71,19 +67,24 @@ class Environment(gym.core.Env):
         self.params['pre_gsi'] = gsi
         self.params['post_gsi'] = post_gsi
 
-        # print(id, self.params)
-
         return self.params
+
+    def reward_shaping(self, params, reward):
+        if params['post_psi'] - params['pre_psi'] < 0:
+            return -2
+        elif params['post_gsi'] - params['pre_gsi'] < 0:
+            print('out', params['post_gsi'] - params['pre_gsi'])
+            return -1
+        else:
+            return reward
 
     def get_reward(self, params, id):
         params = self.get_satisfaction(id)
 
         # pre psi
-        # print(params)
+        print(params)
 
-        pre_psi = params['pre_psi']
         post_psi = params['post_psi']
-        pre_gsi = params['pre_gsi']
         post_gsi = params['post_gsi']
 
         reward = 0
@@ -92,7 +93,7 @@ class Environment(gym.core.Env):
         sub_reward = post_gsi
 
         # 補助報酬　倍率未定
-        reward += 1.0 * main_reward + 0.1 * (sub_reward / self.n_member)
+        reward += main_reward + sub_reward / self.n_member
 
         self.first_ranking = self.ranking
 
@@ -103,8 +104,11 @@ class Environment(gym.core.Env):
         # print(observation)
         return observation
 
-    def check_is_done(self):
-        return self.time == self.max_step
+    def check_is_done(self, reward):
+        if reward == 2:
+            return True
+        else:
+            return self.time == self.max_step
 
     def idocriw_method(self, dataset, criterion_type):
         X = np.copy(dataset)
@@ -273,16 +277,16 @@ class Environment(gym.core.Env):
         p = {}
 
         for i in range(7):
-            P = [random.randint(1, 10)/10 for _ in range(7)]
-            Q = [random.uniform(0, P[j]) for j in range(7)]
-            S = [(P[j]-Q[j]) for j in range(7)]
-            F = [pref[random.randint(0, 5)] for _ in range(7)]
+            self.P = [random.randint(1, 10)/10 for _ in range(7)]
+            self.Q = [random.uniform(0, self.P[j]) for j in range(7)]
+            self.S = [(self.P[j]-self.Q[j]) for j in range(7)]
+            self.F = [pref[random.randint(0, 5)] for _ in range(7)]
 
-            p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
+            p[i] = self.promethee_ii(dataset, W=W, Q=self.Q, S=self.S, P=self.P, F=self.F,
                                      sort=False, topn=10, graph=False)
         return p
 
-    def change_ranking(self, id, action, dataset, criterion_type):
+    def change_ranking(self, action, subaction, dataset, criterion_type):
         W = self.idocriw_method(dataset, criterion_type)
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 

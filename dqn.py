@@ -25,10 +25,10 @@ class DQN:
 
             state = torch.from_numpy(observation).float().view(1, 7)
 
-            episode_reward = [0 for i in range(self.env.n_member)]
+            episode_reward = [0 for _ in range(self.env.n_member)]
 
-            for step in range(20):
-                # step size
+            for step in range(100):
+
                 rewards = {}
 
                 for i in range(self.env.n_member):
@@ -47,6 +47,8 @@ class DQN:
 
                     self.logger.log_value(
                         'agnet/gsi', {'gsi': info['gsi']}, episode)
+
+                    # if step > 100: 意見の創発この辺でやりたい
 
                     if done & i == self.env.n_member:
                         state_next = None

@@ -82,7 +82,7 @@ class Environment(gym.core.Env):
         params = self.get_satisfaction(id)
 
         # pre psi
-        print(params)
+        # print(params)
 
         post_psi = params['post_psi']
         post_gsi = params['post_gsi']

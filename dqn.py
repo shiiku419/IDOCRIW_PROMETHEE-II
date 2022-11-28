@@ -19,7 +19,7 @@ class DQN:
 
     def run2(self):
 
-        for episode in range(10001):
+        for episode in range(30001):
             observation = self.env.reset()
             observation = np.delete(observation, 0, 1)
 
@@ -50,7 +50,7 @@ class DQN:
                     rewards[i] = reward
 
                     self.logger.log_value(
-                        'agnet/gsi', {'gsi': info['gsi']}, episode)
+                        'gsi', {'gsi': info['gsi']}, episode)
 
                     # if step > 100: 意見の創発この辺でやりたい
 
@@ -87,7 +87,7 @@ class DQN:
             self.logger.log_value(
                 'step_size', {'step_size': step_size}, episode)
 
-            if episode < 10000:
+            if episode < 30000:
                 self.logger.close()
 
 

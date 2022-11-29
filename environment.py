@@ -266,7 +266,7 @@ class Environment(gym.core.Env):
         return group_rank
 
     # Criterion Type: 'max' or 'min'
-    criterion_type = ['max', 'max', 'max', 'min', 'min', 'min', 'min']
+    criterion_type = ['max', 'max', 'max', 'min', 'min']
 
     # Parameters
 

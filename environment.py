@@ -7,8 +7,8 @@ from scipy.special import softmax
 
 class Environment(gym.core.Env):
 
-    def __init__(self, n_member=7):
-        self.dataset = np.random.rand(7, 7) + 0.01
+    def __init__(self, n_member=5):
+        self.dataset = np.random.rand(5, 5) + 0.01
         self.n_member = n_member
         self.n_action = n_member
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
@@ -43,7 +43,7 @@ class Environment(gym.core.Env):
 
     def reset(self):
         self.time = 0
-        self.dataset = np.random.rand(7, 7) + 0.01
+        self.dataset = np.random.rand(5, 5) + 0.01
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
         observation = self.get_observation(self.first_ranking)
@@ -276,11 +276,11 @@ class Environment(gym.core.Env):
 
         p = {}
 
-        for i in range(7):
-            self.P = [random.randint(1, 10)/10 for _ in range(7)]
-            self.Q = [random.uniform(0, self.P[j]) for j in range(7)]
-            self.S = [(self.P[j]-self.Q[j]) for j in range(7)]
-            self.F = [pref[random.randint(0, 5)] for _ in range(7)]
+        for i in range(5):
+            self.P = [random.randint(1, 10)/10 for _ in range(5)]
+            self.Q = [random.uniform(0, self.P[j]) for j in range(5)]
+            self.S = [(self.P[j]-self.Q[j]) for j in range(5)]
+            self.F = [pref[random.randint(0, 5)] for _ in range(5)]
 
             p[i] = self.promethee_ii(dataset, W=W, Q=self.Q, S=self.S, P=self.P, F=self.F,
                                      sort=False, topn=10, graph=False)
@@ -292,11 +292,11 @@ class Environment(gym.core.Env):
 
         p = {}
 
-        for i in range(7):
-            P = action.view(7)/10
-            Q = [random.uniform(0, P[j]) for j in range(7)]
-            S = [(P[j]-Q[j]) for j in range(7)]
-            F = [pref[random.randint(0, 5)] for _ in range(7)]
+        for i in range(5):
+            P = action.view(5)/10
+            Q = [random.uniform(0, P[j]) for j in range(5)]
+            S = [(P[j]-Q[j]) for j in range(5)]
+            F = [pref[random.randint(0, 5)] for _ in range(5)]
 
             p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                                      sort=False, topn=10, graph=False)

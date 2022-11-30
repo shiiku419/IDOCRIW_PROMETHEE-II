@@ -16,7 +16,7 @@ class Environment(gym.core.Env):
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
         self.time = 0
-        self.max_step = 200*n_member
+        self.max_step = 100*n_member
 
         self.P = []
         self.Q = []
@@ -82,7 +82,7 @@ class Environment(gym.core.Env):
         params = self.get_satisfaction(id)
 
         # pre psi
-        # print(params)
+        print(params)
 
         post_psi = params['post_psi']
         post_gsi = params['post_gsi']

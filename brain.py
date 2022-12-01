@@ -81,13 +81,13 @@ class Brain:
         if epsilon <= np.random.uniform(0, 1):
             self.model.eval()
             with torch.no_grad():
-                out = self.model(state).view(5, 10)
+                out = self.model(state).view(7, 10)
                 action = out.max(1)[1]  # 1,1
                 subaction = out.min(1)[1]
                 #action = action/10
         else:
             action = torch.tensor(
                 [[random.random() for _ in range(self.num_actions)]])
-            action = action.view(5)
-            subaction = np.zeros(5)
+            action = action.view(7)
+            subaction = np.zeros(7)
         return action, subaction

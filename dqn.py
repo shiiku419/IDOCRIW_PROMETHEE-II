@@ -15,7 +15,6 @@ class DQN:
         self.agents = [Agents(i, num_states, num_actions)
                        for i in range(self.env.n_member)]
         self.logger = TensorboardLogger()
-        self.iter_no = 0
 
     def run2(self):
 
@@ -29,11 +28,12 @@ class DQN:
 
             step_size = 0
 
-            for step in range(100):
+            for step in range(20):
 
                 step_size += 1
 
                 rewards = {}
+                psi = {}
 
                 for i in range(self.env.n_member):
 
@@ -49,10 +49,10 @@ class DQN:
 
                     rewards[i] = reward
 
+                    psi[i] = info['psi']
+
                     self.logger.log_value(
                         'gsi', {'gsi': info['gsi']}, episode)
-
-                    # if step > 100: 意見の創発この辺でやりたい
 
                     if done & i == self.env.n_member:
                         state_next = None
@@ -67,9 +67,13 @@ class DQN:
                     self.agents[i].memorize(
                         state, action.view(1, 5), state_next, reward, i)
 
-                    self.agents[i].update_q_function(i)
+                    self.agents[i].update_q_function(i, episode)
 
                     state = state_next
+
+                # 意見の創発
+                if step == 10:
+                    self.env.generate()
 
                 self.logger.log_value(
                     'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
@@ -83,6 +87,9 @@ class DQN:
 
             self.logger.log_value(
                 'agent/step_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
+
+            self.logger.log_value(
+                'agent/psi', {'agent'+str(i): psi[i] for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
                 'step_size', {'step_size': step_size}, episode)

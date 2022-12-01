@@ -26,13 +26,12 @@ class Brain:
         self.model.add_module('fc3', nn.Linear(36, num_actions*10))
 
         self.logger = TensorboardLogger()
-        self.number = 0
 
         # print(self.model)
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
 
-    def replay(self, id):
+    def replay(self, id, episode):
         '''Experience Replayでネットワークの結合パラメータを学習'''
 
         if len(self.memory.memory[id]) < self.BATCH_SIZE:
@@ -70,13 +69,11 @@ class Brain:
                                 expected_state_action_values.unsqueeze(1))
 
         self.logger.log_value(
-            'agent/loss', {'agent'+str(id): loss}, self.number)
+            'agent/loss', {'agent'+str(id): loss}, episode)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-        self.number += 1
 
     def decide_action(self, state, episode):
         epsilon = 0.5 * (1 / (episode + 1))

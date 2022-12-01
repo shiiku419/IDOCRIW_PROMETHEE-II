@@ -8,7 +8,7 @@ from scipy.special import softmax
 class Environment(gym.core.Env):
 
     def __init__(self, n_member=5):
-        self.dataset = np.random.rand(5, 5) + 0.01
+        self.dataset = np.random.rand(5, 5) + 0.00001
         self.n_member = n_member
         self.n_action = n_member
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
@@ -16,7 +16,7 @@ class Environment(gym.core.Env):
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
         self.time = 0
-        self.max_step = 100*n_member
+        self.max_step = 20*n_member
 
         self.P = []
         self.Q = []
@@ -33,13 +33,21 @@ class Environment(gym.core.Env):
     def step(self, action, subaction, id):
         self.time += 1
         self.ranking = self.change_ranking(
-            action, subaction, self.dataset, self.criterion_type)
+            action, id, self.dataset, self.criterion_type, self.ranking)
         observation = self.get_observation(self.ranking)
         reward = self.reward_shaping(
             self.params, self.get_reward(self.params, id))
         done = self.check_is_done(reward)
-        info = {'gsi': self.params['post_gsi']}
+        info = {'gsi': self.params['post_gsi'],
+                'psi': self.params['post_psi']}
         return observation, reward, done, info
+
+    def generate(self):
+        random = np.random.randint(0, 4)
+        index = np.where(self.ranking[random] ==
+                         self.ranking[random].max(0)[1])[0][0]
+        self.dataset[index] = self.dataset[index]*np.random.normal(1, 2, 1)
+        print('out')
 
     def reset(self):
         self.time = 0
@@ -62,6 +70,8 @@ class Environment(gym.core.Env):
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, self.n_member)
 
+        print(id, post_psi)
+
         self.params['pre_psi'] = psi[id]
         self.params['post_psi'] = post_psi[id]
         self.params['pre_gsi'] = gsi
@@ -82,7 +92,7 @@ class Environment(gym.core.Env):
         params = self.get_satisfaction(id)
 
         # pre psi
-        print(params)
+        # print(params)
 
         post_psi = params['post_psi']
         post_gsi = params['post_gsi']
@@ -128,7 +138,7 @@ class Environment(gym.core.Env):
             if (criterion_type[i] == 'min'):
                 X_r[:, i] = dataset[:, i].min() / X_r[:, i]
         X_r = X_r/X_r.sum(axis=0)
-        #a_min = X_r.min(axis = 0)
+        # a_min = X_r.min(axis = 0)
         a_max = X_r.max(axis=0)
         A = np.zeros(dataset.shape)
         np.fill_diagonal(A, a_max)
@@ -137,7 +147,7 @@ class Environment(gym.core.Env):
             i = i[0]
             for j in range(0, A.shape[1]):
                 A[k, j] = X_r[i, j]
-        #a_min_ = A.min(axis = 0)
+        # a_min_ = A.min(axis = 0)
         a_max_ = A.max(axis=0)
         P = np.copy(A)
         for i in range(0, P.shape[1]):
@@ -277,7 +287,7 @@ class Environment(gym.core.Env):
         p = {}
 
         for i in range(5):
-            self.P = [random.randint(1, 10)/10 for _ in range(5)]
+            self.P = [random.random() for _ in range(5)]
             self.Q = [random.uniform(0, self.P[j]) for j in range(5)]
             self.S = [(self.P[j]-self.Q[j]) for j in range(5)]
             self.F = [pref[random.randint(0, 5)] for _ in range(5)]
@@ -286,18 +296,15 @@ class Environment(gym.core.Env):
                                      sort=False, topn=10, graph=False)
         return p
 
-    def change_ranking(self, action, subaction, dataset, criterion_type):
+    def change_ranking(self, action, id, dataset, criterion_type, ranking):
         W = self.idocriw_method(dataset, criterion_type)
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
-        p = {}
+        P = action.view(5)/10
+        Q = [random.uniform(0, P[j]) for j in range(5)]
+        S = [(P[j]-Q[j]) for j in range(5)]
+        F = [pref[random.randint(0, 5)] for _ in range(5)]
 
-        for i in range(5):
-            P = action.view(5)/10
-            Q = [random.uniform(0, P[j]) for j in range(5)]
-            S = [(P[j]-Q[j]) for j in range(5)]
-            F = [pref[random.randint(0, 5)] for _ in range(5)]
-
-            p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
-                                     sort=False, topn=10, graph=False)
-        return p
+        ranking[id] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
+                                        sort=False, topn=10, graph=False)
+        return ranking

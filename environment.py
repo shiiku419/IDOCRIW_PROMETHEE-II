@@ -285,11 +285,12 @@ class Environment(gym.core.Env):
 
         p = {}
 
-        for i in range(5):
-            self.P = [random.random() for _ in range(5)]
-            self.Q = [random.uniform(0, self.P[j]) for j in range(5)]
-            self.S = [(self.P[j]-self.Q[j]) for j in range(5)]
-            self.F = [pref[random.randint(0, 5)] for _ in range(5)]
+        for i in range(self.n_member):
+            self.P = [random.random() for _ in range(self.n_member)]
+            self.Q = [random.uniform(0, self.P[j])
+                      for j in range(self.n_member)]
+            self.S = [(self.P[j]-self.Q[j]) for j in range(self.n_member)]
+            self.F = [pref[random.randint(0, 5)] for _ in range(self.n_member)]
 
             p[i] = self.promethee_ii(dataset, W=W, Q=self.Q, S=self.S, P=self.P, F=self.F,
                                      sort=False, topn=10, graph=False)
@@ -299,10 +300,10 @@ class Environment(gym.core.Env):
         W = self.idocriw_method(dataset, criterion_type)
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
-        P = action.view(5)/10
-        Q = [random.uniform(0, P[j]) for j in range(5)]
+        P = action.view(self.n_member)/10
+        Q = [random.uniform(0, P[j]) for j in range(self.n_member)]
         S = [(P[j]-Q[j]) for j in range(5)]
-        F = [pref[random.randint(0, 5)] for _ in range(5)]
+        F = [pref[random.randint(0, 5)] for _ in range(self.n_member)]
 
         ranking[id] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                                         sort=False, topn=10, graph=False)

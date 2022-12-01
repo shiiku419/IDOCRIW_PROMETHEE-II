@@ -8,7 +8,7 @@ from scipy.special import softmax
 class Environment(gym.core.Env):
 
     def __init__(self, n_member=5):
-        self.dataset = np.random.rand(5, 5) + 0.00001
+        self.dataset = np.random.beta(2, 2, (5, 5))
         self.n_member = n_member
         self.n_action = n_member
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
@@ -46,12 +46,11 @@ class Environment(gym.core.Env):
         random = np.random.randint(0, 4)
         index = np.where(self.ranking[random] ==
                          self.ranking[random].max(0)[1])[0][0]
-        self.dataset[index] = self.dataset[index]*np.random.normal(1, 2, 1)
-        print('out')
+        self.dataset[index] = self.dataset[index]*np.random.normal(1, 0.2, 1)
 
     def reset(self):
         self.time = 0
-        self.dataset = np.random.rand(5, 5) + 0.01
+        self.dataset = np.random.beta(2, 2, (5, 5))
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
         observation = self.get_observation(self.first_ranking)
@@ -70,7 +69,7 @@ class Environment(gym.core.Env):
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, self.n_member)
 
-        print(id, post_psi)
+        #print(id, post_psi)
 
         self.params['pre_psi'] = psi[id]
         self.params['post_psi'] = post_psi[id]

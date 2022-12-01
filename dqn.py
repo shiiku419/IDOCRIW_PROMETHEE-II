@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import random
 from agent import Agents
 from environment import Environment
 from log import TensorboardLogger
@@ -35,7 +36,12 @@ class DQN:
                 rewards = {}
                 psi = {}
 
-                for i in range(self.env.n_member):
+                agent = random.sample(
+                    range(self.env.n_member), self.env.n_member)
+
+                for k in range(self.env.n_member):
+
+                    i = agent[k]
 
                     action, subaction = self.agents[i].get_action(
                         state, episode)

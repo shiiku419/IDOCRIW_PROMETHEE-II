@@ -7,7 +7,7 @@ from scipy.special import softmax
 
 class Environment(gym.core.Env):
 
-    def __init__(self, n_member=5):
+    def __init__(self, n_member=7):
         self.dataset = np.random.rand(n_member, n_member)
         self.n_member = n_member
         self.n_action = n_member
@@ -302,7 +302,7 @@ class Environment(gym.core.Env):
 
         P = action.view(self.n_member)/10
         Q = [random.uniform(0, P[j]) for j in range(self.n_member)]
-        S = [(P[j]-Q[j]) for j in range(5)]
+        S = [(P[j]-Q[j]) for j in range(self.n_member)]
         F = [pref[random.randint(0, 5)] for _ in range(self.n_member)]
 
         ranking[id] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,

@@ -8,7 +8,7 @@ from scipy.special import softmax
 class Environment(gym.core.Env):
 
     def __init__(self, n_member=5):
-        self.dataset = np.random.beta(2, 2, (5, 5))
+        self.dataset = np.random.rand(n_member, n_member)
         self.n_member = n_member
         self.n_action = n_member
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
@@ -50,7 +50,7 @@ class Environment(gym.core.Env):
 
     def reset(self):
         self.time = 0
-        self.dataset = np.random.beta(2, 2, (5, 5))
+        self.dataset = np.random.rand(self.n_member, self.n_member)
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
         observation = self.get_observation(self.first_ranking)

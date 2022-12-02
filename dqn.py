@@ -19,7 +19,7 @@ class DQN:
 
     def run2(self):
 
-        for episode in range(30001):
+        for episode in range(50001):
             observation = self.env.reset()
             observation = np.delete(observation, 0, 1)
 
@@ -33,7 +33,7 @@ class DQN:
             step_size = 0
             loss_step = 0
 
-            for step in range(20):
+            for step in range(30):
 
                 step_size += 1
 
@@ -111,7 +111,7 @@ class DQN:
 
             self.logger.writer.flush()
 
-            if episode < 30000:
+            if episode < 50000:
                 self.logger.close()
 
 

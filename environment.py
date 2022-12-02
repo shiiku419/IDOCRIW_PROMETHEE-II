@@ -75,10 +75,9 @@ class Environment(gym.core.Env):
 
     def reward_shaping(self, params, reward):
         if params['post_psi'] - params['pre_psi'] < 0:
-            return -2
-        elif params['post_gsi'] - params['pre_gsi'] < 0:
-            print('out', params['post_gsi'] - params['pre_gsi'])
             return -1
+        elif params['post_psi'] - params['pre_psi'] == 0:
+            return 0.5
         else:
             return reward
 
@@ -87,17 +86,14 @@ class Environment(gym.core.Env):
 
         # pre psi
         # print(params)
-
+        reward = 0
         post_psi = params['post_psi']
         post_gsi = params['post_gsi']
-
-        reward = 0
 
         main_reward = post_psi
         sub_reward = post_gsi
 
-        # 補助報酬　倍率未定
-        reward += main_reward + sub_reward / self.n_member
+        reward += main_reward + (sub_reward / self.n_member)*random.random()
 
         self.first_ranking = self.ranking
 

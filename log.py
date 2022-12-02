@@ -6,7 +6,7 @@ class TensorboardLogger(DataLogger):
 
     def __init__(self, writer=None):
         if writer is None:
-            writer = SummaryWriter(log_dir="./logs/exp7")
+            writer = SummaryWriter(log_dir="./logs/exp1")
         if not isinstance(writer, SummaryWriter):
             raise ValueError(
                 "Only `SummaryWriter` class is allowed for the Tensorboard logger")

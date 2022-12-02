@@ -18,11 +18,6 @@ class Environment(gym.core.Env):
         self.time = 0
         self.max_step = 20*n_member
 
-        self.P = []
-        self.Q = []
-        self.S = []
-        self.F = []
-
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
 
@@ -286,12 +281,12 @@ class Environment(gym.core.Env):
         p = {}
 
         for i in range(self.n_member):
-            self.P = [random.random() for _ in range(7)]
-            self.Q = [random.uniform(0, self.P[j])for j in range(7)]
-            self.S = [(self.P[j]-self.Q[j]) for j in range(7)]
-            self.F = [pref[random.randint(0, 5)] for _ in range(7)]
+            P = [random.random() for _ in range(7)]
+            Q = [random.uniform(0, P[j])for j in range(7)]
+            S = [(P[j]-Q[j]) for j in range(7)]
+            F = [pref[random.randint(0, 5)] for _ in range(7)]
 
-            p[i] = self.promethee_ii(dataset, W=W, Q=self.Q, S=self.S, P=self.P, F=self.F,
+            p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                                      sort=False, topn=10, graph=False)
         return p
 

@@ -85,11 +85,6 @@ class DQN:
                 if step == 10:
                     self.env.generate()
 
-                self.logger.log_value(
-                    'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
-
-                self.logger.writer.flush()
-
                 if done:
                     break
 
@@ -103,6 +98,9 @@ class DQN:
                 'ave_gsi', {'gsi': info['gsi']/step_size}, episode)
 
             self.logger.log_value(
+                'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
+
+            self.logger.log_value(
                 'agent/ave_reward', {'agent'+str(i): episode_reward[i]/step_size for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
@@ -110,6 +108,8 @@ class DQN:
 
             self.logger.log_value(
                 'step_size', {'step_size': step_size}, episode)
+
+            self.logger.writer.flush()
 
             if episode < 30000:
                 self.logger.close()

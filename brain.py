@@ -68,12 +68,11 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
-        self.logger.log_value(
-            'agent/loss', {'agent'+str(id): loss}, episode)
-
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        return loss
 
     def decide_action(self, state, episode):
         epsilon = 0.5 * (1 / (episode + 1))

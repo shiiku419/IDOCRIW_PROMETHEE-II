@@ -7,7 +7,7 @@ from scipy.special import softmax
 
 class Environment(gym.core.Env):
 
-    def __init__(self, n_member=7):
+    def __init__(self, n_member=5):
         self.dataset = np.random.rand(n_member, n_member)
         self.n_member = n_member
         self.n_action = n_member

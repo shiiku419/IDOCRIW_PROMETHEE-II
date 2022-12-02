@@ -19,11 +19,11 @@ class Brain:
         self.memory = ReplayMemory(CAPACITY)
 
         self.model = nn.Sequential()
-        self.model.add_module('fc1', nn.Linear(num_states, 36))
+        self.model.add_module('fc1', nn.Linear(7, 36))
         self.model.add_module('relu1', nn.ReLU())
         self.model.add_module('fc2', nn.Linear(36, 36))
         self.model.add_module('relu2', nn.ReLU())
-        self.model.add_module('fc3', nn.Linear(36, num_actions*10))
+        self.model.add_module('fc3', nn.Linear(36, 7*10))
 
         self.logger = TensorboardLogger()
 
@@ -80,13 +80,13 @@ class Brain:
         if epsilon <= np.random.uniform(0, 1):
             self.model.eval()
             with torch.no_grad():
-                out = self.model(state).view(self.num_actions, 10)
+                out = self.model(state).view(7, 10)
                 action = out.max(1)[1]  # 1,1
                 subaction = out.min(1)[1]
                 #action = action/10
         else:
             action = torch.tensor(
-                [[random.random() for _ in range(self.num_actions)]])
-            action = action.view(self.num_actions)
-            subaction = np.zeros(self.num_actions)
+                [[random.random() for _ in range(7)]])
+            action = action.view(7)
+            subaction = np.zeros(7)
         return action, subaction

@@ -24,7 +24,7 @@ class DQN:
             observation = np.delete(observation, 0, 1)
 
             state = torch.from_numpy(
-                observation).float().view(1, self.env.n_member)
+                observation).float().view(1, 7)
 
             episode_reward = [0 for _ in range(self.env.n_member)]
             psi = [0 for _ in range(self.env.n_member)]
@@ -68,10 +68,10 @@ class DQN:
                         state_next = observation_next
                         state_next = np.delete(state_next, 0, 1)
                         state_next = torch.from_numpy(
-                            state_next).float().view(1, self.env.n_member)
+                            state_next).float().view(1, 7)
 
                     self.agents[i].memorize(
-                        state, action.view(1, self.env.n_member), state_next, reward, i)
+                        state, action.view(1, 7), state_next, reward, i)
 
                     loss = self.agents[i].update_q_function(i, episode)
 

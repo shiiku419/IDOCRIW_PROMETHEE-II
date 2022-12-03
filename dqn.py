@@ -33,7 +33,7 @@ class DQN:
             step_size = 0
             loss_step = 0
 
-            for step in range(30):
+            for step in range(50):
 
                 step_size += 1
 
@@ -82,7 +82,7 @@ class DQN:
                     state = state_next
 
                 # 意見の創発
-                if step == 10:
+                if step % 20 == 0:
                     self.env.generate()
 
                 if done:
@@ -104,7 +104,7 @@ class DQN:
                 'agent/ave_reward', {'agent'+str(i): episode_reward[i]/step_size for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
-                'agent/psi', {'agent'+str(i): psi[i] for i in range(self.env.n_member)}, episode)
+                'agent/ave_psi', {'agent'+str(i): psi[i]/step_size for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
                 'step_size', {'step_size': step_size}, episode)

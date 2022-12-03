@@ -16,7 +16,7 @@ class Environment(gym.core.Env):
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
         self.time = 0
-        self.max_step = 20*n_member
+        self.max_step = 50*n_member
 
         self.first_ranking = self.get_ranking(
             self.dataset, self.criterion_type)
@@ -32,7 +32,7 @@ class Environment(gym.core.Env):
         observation = self.get_observation(self.ranking)
         reward = self.reward_shaping(
             self.params, self.get_reward(self.params, id))
-        done = self.check_is_done(reward)
+        done = self.check_is_done(self.params)
         info = {'gsi': self.params['post_gsi'],
                 'psi': self.params['post_psi']}
         return observation, reward, done, info
@@ -104,8 +104,8 @@ class Environment(gym.core.Env):
         # print(observation)
         return observation
 
-    def check_is_done(self, reward):
-        if reward == 2:
+    def check_is_done(self, params):
+        if params['post_gsi'] == self.n_member:
             return True
         else:
             return self.time == self.max_step

@@ -17,7 +17,7 @@ class DQN:
                        for i in range(self.env.n_member)]
         self.logger = TensorboardLogger()
 
-    def run2(self):
+    def run(self):
 
         for episode in range(50001):
             observation = self.env.reset()
@@ -32,12 +32,11 @@ class DQN:
 
             step_size = 0
             loss_step = 0
+            sum_gsi = 0
 
             for step in range(50):
 
                 step_size += 1
-
-                rewards = {}
 
                 agent = random.sample(
                     range(self.env.n_member), self.env.n_member)
@@ -55,10 +54,9 @@ class DQN:
                     episode_reward[i] += reward
 
                     psi[i] += info['psi']
+                    sum_gsi += info['gsi']
 
                     reward = torch.FloatTensor([reward])
-
-                    rewards[i] = reward
 
                     if done & k == self.env.n_member:
                         state_next = None
@@ -95,7 +93,7 @@ class DQN:
                     'agent/avg_loss', {'agent'+str(i): losses[i]/loss_step for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
-                'ave_gsi', {'gsi': info['gsi']/step_size}, episode)
+                'ave_gsi', {'gsi': sum_gsi/step_size}, episode)
 
             self.logger.log_value(
                 'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
@@ -117,4 +115,4 @@ class DQN:
 
 if __name__ == "__main__":
     dqn = DQN()
-    dqn.run2()
+    dqn.run()

@@ -23,6 +23,8 @@ class Environment(gym.core.Env):
 
         self.ranking = self.first_ranking.copy()
 
+        self.F = None
+
         self.params = {}
 
     def step(self, action, subaction, id):
@@ -280,21 +282,19 @@ class Environment(gym.core.Env):
             P = [random.random() for _ in range(7)]
             Q = [random.uniform(0, P[j])for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
-            F = [pref[random.randint(0, 5)] for _ in range(7)]
+            self.F = [pref[random.randint(0, 5)] for _ in range(7)]
 
-            p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
+            p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=self.F,
                                      sort=False, topn=10, graph=False)
         return p
 
     def change_ranking(self, action, id, dataset, criterion_type, ranking):
         W = self.idocriw_method(dataset, criterion_type)
-        pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         P = action.view(7)/10
         Q = [random.uniform(0, P[j]) for j in range(7)]
         S = [(P[j]-Q[j]) for j in range(7)]
-        F = [pref[random.randint(0, 5)] for _ in range(7)]
 
-        ranking[id] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
+        ranking[id] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=self.F,
                                         sort=False, topn=10, graph=False)
         return ranking

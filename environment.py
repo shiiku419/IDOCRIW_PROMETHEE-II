@@ -18,12 +18,13 @@ class Environment(gym.core.Env):
         self.time = 0
         self.max_step = 50*n_member
 
+        self.W = None
+        self.F = {}
+
         self.first_ranking = self.get_ranking(
-            self.dataset, self.criterion_type)
+            self.F, self.dataset, self.criterion_type)
 
         self.ranking = self.first_ranking.copy()
-
-        self.F = None
 
         self.params = {}
 
@@ -49,7 +50,7 @@ class Environment(gym.core.Env):
         self.time = 0
         self.dataset = np.random.rand(7, 7)
         self.first_ranking = self.get_ranking(
-            self.dataset, self.criterion_type)
+            self.F, self.dataset, self.criterion_type)
         observation = self.get_observation(self.first_ranking)
         return observation
 
@@ -67,6 +68,7 @@ class Environment(gym.core.Env):
             self.distance, self.ranking, 1, self.n_member)
 
         #print(id, post_psi)
+        # print(psi)
 
         self.params['pre_psi'] = psi[id]
         self.params['post_psi'] = post_psi[id]
@@ -103,7 +105,6 @@ class Environment(gym.core.Env):
 
     def get_observation(self, p):
         observation = self.calc_group_rank(p)
-        # print(observation)
         return observation
 
     def check_is_done(self, params):
@@ -130,7 +131,6 @@ class Environment(gym.core.Env):
             if (criterion_type[i] == 'min'):
                 X_r[:, i] = dataset[:, i].min() / X_r[:, i]
         X_r = X_r/X_r.sum(axis=0)
-        # a_min = X_r.min(axis = 0)
         a_max = X_r.max(axis=0)
         A = np.zeros(dataset.shape)
         np.fill_diagonal(A, a_max)
@@ -139,14 +139,12 @@ class Environment(gym.core.Env):
             i = i[0]
             for j in range(0, A.shape[1]):
                 A[k, j] = X_r[i, j]
-        # a_min_ = A.min(axis = 0)
         a_max_ = A.max(axis=0)
         P = np.copy(A)
         for i in range(0, P.shape[1]):
             P[:, i] = (-P[:, i] + a_max_[i])/a_max[i]
         WP = np.copy(P)
         np.fill_diagonal(WP, -P.sum(axis=0))
-        # print(WP)
         return WP
 
     def distance_matrix(self, dataset, criteria=0):
@@ -231,9 +229,6 @@ class Environment(gym.core.Env):
         if (topn > 0):
             if (topn > pd_matrix.shape[0]):
                 topn = pd_matrix.shape[0]
-            # for i in range(0, topn):
-                # print('alternative' + str(int(flow[i, 0])) + ': ' + str(round(flow[i, 1], 3)))
-        # print(flow)
         return flow
 
     def distance(self, j, g_rank):
@@ -246,7 +241,6 @@ class Environment(gym.core.Env):
         satisfaction_index = []
         g_ranks = self.calc_group_rank(p)
         for i in range(0, len(p)):
-            # print('DM'+str(i+1))
             i_ranks = p[i][np.argsort(p[1][:, 1])]
 
             for j in range(frm, to+1):
@@ -268,12 +262,12 @@ class Environment(gym.core.Env):
         return group_rank
 
     # Criterion Type: 'max' or 'min'
-    criterion_type = ['max', 'max', 'max', 'min', 'min']
+    criterion_type = ['max', 'max', 'max', 'max', 'max', 'min', 'min']
 
     # Parameters
 
-    def get_ranking(self, dataset, criterion_type):
-        W = self.idocriw_method(dataset, criterion_type)
+    def get_ranking(self, F, dataset, criterion_type):
+        self.W = self.idocriw_method(dataset, criterion_type)
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         p = {}
@@ -282,19 +276,18 @@ class Environment(gym.core.Env):
             P = [random.random() for _ in range(7)]
             Q = [random.uniform(0, P[j])for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]
-            self.F = [pref[random.randint(0, 5)] for _ in range(7)]
+            F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
 
-            p[i] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=self.F,
+            p[i] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=F[i],
                                      sort=False, topn=10, graph=False)
         return p
 
     def change_ranking(self, action, id, dataset, criterion_type, ranking):
-        W = self.idocriw_method(dataset, criterion_type)
 
         P = action.view(7)/10
         Q = [random.uniform(0, P[j]) for j in range(7)]
         S = [(P[j]-Q[j]) for j in range(7)]
 
-        ranking[id] = self.promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=self.F,
+        ranking[id] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=self.F[id],
                                         sort=False, topn=10, graph=False)
         return ranking

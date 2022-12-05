@@ -49,6 +49,7 @@ class Environment(gym.core.Env):
 
     def reset(self):
         self.time = 0
+        self.agent = random.sample(range(self.n_member), self.n_member)
         self.dataset = np.random.rand(7, 7)
         self.first_ranking = self.get_ranking(
             self.F, self.dataset, self.criterion_type)

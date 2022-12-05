@@ -17,6 +17,7 @@ class Environment(gym.core.Env):
 
         self.time = 0
         self.max_step = 50*n_member
+        self.agent = random.sample(range(self.n_member), self.n_member)
 
         self.W = None
         self.F = {}
@@ -238,9 +239,10 @@ class Environment(gym.core.Env):
         result = 0
         satisfaction = 0
         group_satisfaction = 0
-        satisfaction_index = []
+        satisfaction_index = [0 for _ in range(5)]
         g_ranks = self.calc_group_rank(p)
-        for i in range(0, len(p)):
+        for k in range(0, len(p)):
+            i = self.agent[k]
             i_ranks = p[i][np.argsort(p[1][:, 1])]
 
             for j in range(frm, to+1):
@@ -250,7 +252,7 @@ class Environment(gym.core.Env):
             bottom = to**3 - to
             satisfaction = 1 - 6 * result / bottom
             group_satisfaction += satisfaction
-            satisfaction_index += [satisfaction]
+            satisfaction_index[i] = satisfaction
         return satisfaction_index, group_satisfaction
 
     def calc_group_rank(self, p):
@@ -272,7 +274,8 @@ class Environment(gym.core.Env):
 
         p = {}
 
-        for i in range(self.n_member):
+        for k in range(self.n_member):
+            i = self.agent[k]
             P = [random.random() for _ in range(7)]
             Q = [random.uniform(0, P[j])for j in range(7)]
             S = [(P[j]-Q[j]) for j in range(7)]

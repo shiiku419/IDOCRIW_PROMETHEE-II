@@ -28,6 +28,7 @@ class DQN:
 
             episode_reward = [0 for _ in range(self.env.n_member)]
             psi = [0 for _ in range(self.env.n_member)]
+            log_psi = [0 for _ in range(self.env.n_member)]
             losses = [0 for _ in range(self.env.n_member)]
 
             step_size = 0
@@ -54,9 +55,13 @@ class DQN:
                     episode_reward[i] += reward
 
                     psi[i] += info['psi']
+                    log_psi[i] = info['psi']
                     sum_gsi += info['gsi']
 
                     reward = torch.FloatTensor([reward])
+
+                    self.logger.log_value(
+                        'gsi', {'gsi': info['gsi']}, episode)
 
                     if done & k == self.env.n_member:
                         state_next = None
@@ -85,6 +90,12 @@ class DQN:
 
                 if done:
                     break
+
+                self.logger.log_value(
+                    'agent/reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
+
+                self.logger.log_value(
+                    'agent/psi', {'agent'+str(i): log_psi[i] for i in range(self.env.n_member)}, episode)
 
             print('epispde'+str(episode))
 

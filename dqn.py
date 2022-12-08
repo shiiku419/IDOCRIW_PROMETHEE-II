@@ -29,13 +29,14 @@ class DQN:
             episode_reward = [0 for _ in range(self.env.n_member)]
             psi = [0 for _ in range(self.env.n_member)]
             log_psi = [0 for _ in range(self.env.n_member)]
+            rewards = [0 for _ in range(self.env.n_member)]
             losses = [0 for _ in range(self.env.n_member)]
 
             step_size = 0
             loss_step = 0
             sum_gsi = 0
 
-            for step in range(50):
+            for step in range(100):
 
                 step_size += 1
 
@@ -57,11 +58,9 @@ class DQN:
                     psi[i] += info['psi']
                     log_psi[i] = info['psi']
                     sum_gsi += info['gsi']
+                    rewards[i] = reward
 
                     reward = torch.FloatTensor([reward])
-
-                    self.logger.log_value(
-                        'gsi', {'gsi': info['gsi']}, episode)
 
                     if done & k == self.env.n_member:
                         state_next = None
@@ -85,17 +84,11 @@ class DQN:
                     state = state_next
 
                 # 意見の創発
-                if step % 20 == 0:
+                if step % 40 == 0:
                     self.env.generate()
 
                 if done:
                     break
-
-                self.logger.log_value(
-                    'agent/reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
-
-                self.logger.log_value(
-                    'agent/psi', {'agent'+str(i): log_psi[i] for i in range(self.env.n_member)}, episode)
 
             print('epispde'+str(episode))
 
@@ -105,6 +98,15 @@ class DQN:
 
             self.logger.log_value(
                 'ave_gsi', {'gsi': sum_gsi/step_size}, episode)
+
+            self.logger.log_value(
+                'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
+
+            self.logger.log_value(
+                'agent/psi', {'agent'+str(i): log_psi[i] for i in range(self.env.n_member)}, episode)
+
+            self.logger.log_value(
+                'gsi', {'gsi': info['gsi']}, episode)
 
             self.logger.log_value(
                 'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)

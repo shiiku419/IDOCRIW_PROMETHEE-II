@@ -19,20 +19,19 @@ class Brain:
         self.memory = ReplayMemory(CAPACITY)
 
         self.model = nn.Sequential()
-        self.model.add_module('fc1', nn.Linear(num_states, 36))
+        self.model.add_module('fc1', nn.Linear(7, 36))
         self.model.add_module('relu1', nn.ReLU())
         self.model.add_module('fc2', nn.Linear(36, 36))
         self.model.add_module('relu2', nn.ReLU())
-        self.model.add_module('fc3', nn.Linear(36, num_actions*10))
+        self.model.add_module('fc3', nn.Linear(36, 7*10))
 
         self.logger = TensorboardLogger()
-        self.number = 0
 
         # print(self.model)
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
 
-    def replay(self, id):
+    def replay(self, id, episode):
         '''Experience Replayでネットワークの結合パラメータを学習'''
 
         if len(self.memory.memory[id]) < self.BATCH_SIZE:
@@ -54,7 +53,7 @@ class Brain:
         state_action_values = self.model(
             state_batch).gather(1, action_batch).max(1)[0].unsqueeze(1)
 
-        non_final_mask = torch.ByteTensor(tuple(map(lambda s: s is not None,
+        non_final_mask = torch.BoolTensor(tuple(map(lambda s: s is not None,
                                                     batch.next_state)))
 
         next_state_values = torch.zeros(self.BATCH_SIZE)
@@ -69,14 +68,11 @@ class Brain:
         loss = F.smooth_l1_loss(state_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
-        self.logger.log_value(
-            'agent/loss', {'agent'+str(id): loss}, self.number)
-
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        self.number += 1
+        return loss
 
     def decide_action(self, state, episode):
         epsilon = 0.5 * (1 / (episode + 1))
@@ -85,12 +81,14 @@ class Brain:
             self.model.eval()
             with torch.no_grad():
                 out = self.model(state).view(7, 10)
-                action = out.max(1)[1]  # 1,1
+                action = out.max(1)[1]
                 subaction = out.min(1)[1]
-                #action = action/10
         else:
             action = torch.tensor(
-                [[random.random() for _ in range(self.num_actions)]])
+                [[random.random() for _ in range(7)]])
+            subaction = torch.tensor(
+                [[random.uniform(0, action[0][i]) for i in range(7)]])
             action = action.view(7)
-            subaction = np.zeros(7)
+            subaction = subaction.view(7)
+
         return action, subaction

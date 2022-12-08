@@ -6,8 +6,9 @@ class Agents:
         self.brain = Brain(num_states, num_actions)
         self.agent_id = agent_id
 
-    def update_q_function(self, id):
-        self.brain.replay(id)
+    def update_q_function(self, id, episode):
+        loss = self.brain.replay(id, episode)
+        return loss
 
     def get_action(self, state, episode):
         action, subaction = self.brain.decide_action(state, episode)

@@ -81,12 +81,14 @@ class Brain:
             self.model.eval()
             with torch.no_grad():
                 out = self.model(state).view(7, 10)
-                action = out.max(1)[1]  # 1,1
+                action = out.max(1)[1]
                 subaction = out.min(1)[1]
-                #action = action/10
         else:
             action = torch.tensor(
                 [[random.random() for _ in range(7)]])
+            subaction = torch.tensor(
+                [[random.uniform(0, action[0][i]) for i in range(7)]])
             action = action.view(7)
-            subaction = np.zeros(7)
+            subaction = subaction.view(7)
+
         return action, subaction

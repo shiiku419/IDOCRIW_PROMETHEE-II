@@ -32,7 +32,7 @@ class Environment(gym.core.Env):
     def step(self, action, subaction, id):
         self.time += 1
         self.ranking = self.change_ranking(
-            action, id, self.dataset, self.criterion_type, self.ranking)
+            action, subaction, id, self.dataset, self.criterion_type, self.ranking)
         observation = self.get_observation(self.ranking)
         reward = self.reward_shaping(
             self.params, self.get_reward(self.params, id))
@@ -286,10 +286,10 @@ class Environment(gym.core.Env):
                                      sort=False, topn=10, graph=False)
         return p
 
-    def change_ranking(self, action, id, dataset, criterion_type, ranking):
+    def change_ranking(self, action, subaction, id, dataset, criterion_type, ranking):
 
         P = action.view(7)/10
-        Q = [random.uniform(0, P[j]) for j in range(7)]
+        Q = subaction.view(7)/10
         S = [(P[j]-Q[j]) for j in range(7)]
 
         ranking[id] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=self.F[id],

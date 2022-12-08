@@ -16,8 +16,9 @@ class Environment(gym.core.Env):
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
 
         self.time = 0
-        self.max_step = 50*n_member
+        self.max_step = 100*n_member
         self.agent = random.sample(range(self.n_member), self.n_member)
+        # TODO問題空間の変数を作って大きくしていく
 
         self.W = None
         self.F = {}

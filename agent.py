@@ -7,7 +7,8 @@ class Agents:
         self.agent_id = agent_id
 
     def memorize(self, state, next_state, action_one_hot, reward, mask, id):
-        self.brain.memory.push(state, next_state, action_one_hot, reward, mask)
+        self.brain.memory.push(
+            state, next_state, action_one_hot, reward, mask, id)
 
     def get_action(self, state, epsilon):
         action, subaction = self.brain.decide_action(

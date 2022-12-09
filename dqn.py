@@ -21,12 +21,11 @@ class DQN:
         self.logger = TensorboardLogger()
 
     def main(self):
-        self.env.seed(500)
+        self.env.seed()
         torch.manual_seed(500)
 
         for i in range(self.env.n_member):
-            self.agents[i].update_target_model(
-                self.num_states, self.num_actions, i)
+            self.agents[i].update_target_model()
 
             self.agents[i].train()
 
@@ -57,6 +56,8 @@ class DQN:
             while not done:
                 steps += 1
 
+                step_size += 1
+
                 agent = random.sample(
                     range(self.env.n_member), self.env.n_member)
 
@@ -64,6 +65,7 @@ class DQN:
                     i = agent[k]
                     action, subaction = self.agents[i].get_action(
                         state, epsilon)
+
                     next_state, reward, done, info = self.env.step(
                         action, subaction, i)
 
@@ -72,10 +74,11 @@ class DQN:
 
                     mask = 0 if done else 1
                     reward = reward if not done or score == 499 else -1
-                    action_one_hot = np.zeros(2)
-                    action_one_hot[action] = 1
+                    action_one_hot = np.zeros(7)
+
+                    action_one_hot[torch.argmax(action)] = 1
                     self.agents[i].memorize(state, next_state,
-                                            action_one_hot, reward, mask, id)
+                                            action_one_hot, reward, mask, i)
 
                     score += reward
                     state = next_state

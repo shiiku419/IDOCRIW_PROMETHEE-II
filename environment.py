@@ -10,7 +10,7 @@ class Environment(gym.core.Env):
     def __init__(self, n_member=5):
         self.dataset = np.random.rand(7, 7)
         self.n_member = n_member
-        self.n_action = n_member
+        self.n_action = 7
         self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
         self.observation_space = gym.spaces.Box(
             low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値

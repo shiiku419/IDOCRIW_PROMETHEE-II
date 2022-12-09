@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import torch.nn as nn
 import torch
 import torch.optim as optim
@@ -88,6 +89,12 @@ class Brain:
 
     def decide_action(self, state, epsilon):
         if np.random.rand() <= epsilon:
-            return self.env.action_space.sample()
+            action = torch.tensor(
+                [[random.random() for _ in range(7)]])
+            subaction = torch.tensor(
+                [[random.uniform(0, action[0][i]) for i in range(7)]])
+            action = action.view(7)
+            subaction = subaction.view(7)
+            return action, subaction
         else:
             return self.target_net.get_action(state)

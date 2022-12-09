@@ -59,7 +59,7 @@ class QNet(nn.Module):
 
         self.fc = nn.Linear(num_inputs, 128)
         self.fc_adv = NoisyLinear(128, num_outputs * num_support)
-        self.fc_val = nn.Linear(128, num_support)
+        self.fc_val = nn.Linear(128, num_support*10)
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -90,6 +90,7 @@ class QNet(nn.Module):
     def get_action(self, input):
         Q = self.get_Qvalue(input)
         action = torch.argmax(Q)
+        print('get', action)
         return action.item()
 
     @classmethod

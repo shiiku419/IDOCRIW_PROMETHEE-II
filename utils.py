@@ -36,7 +36,6 @@ V_min = -5
 
 class Memory(object):
     def __init__(self, capacity):
-        self.memory = []
         self.memory_probabiliy = []
         self.capacity = capacity
         self.position = 0
@@ -50,7 +49,7 @@ class Memory(object):
         self.local_action = None
         self.local_rewards = []
 
-    def push(self, state, next_state, action, reward, mask):
+    def push(self, state, next_state, action, reward, mask, id):
         self.local_step += 1
         self.local_rewards.append(reward)
         if self.local_step == 1:
@@ -61,7 +60,7 @@ class Memory(object):
             for idx, local_reward in enumerate(self.local_rewards):
                 reward += (gamma ** idx) * local_reward
             self.push_to_memory(self.local_state, next_state,
-                                self.local_action, reward, mask)
+                                self.local_action, reward, mask, id)
             self.reset_local()
         if mask == 0:
             self.reset_local()

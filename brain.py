@@ -1,22 +1,27 @@
-import random
-import torch
 import numpy as np
-from torch import nn
-from torch import optim
-import torch.nn.functional as F
-from utils import ReplayMemory, Transition
-from log import TensorboardLogger
+import torch.nn as nn
+import torch
+import torch.optim as optim
+from model import QNet
+from utils import Memory, batch_size, device, small_epsilon, alpha
+from environment import Environment
+from collections import namedtuple
+
+Transition = namedtuple(
+    'Transition', ('state', 'next_state', 'action', 'reward', 'mask'))
 
 
 class Brain:
-    def __init__(self, num_states, num_actions, BATCH_SIZE=32, CAPACITY=10000, GAMMA=0.99):
+
+    def __init__(self, num_inputs, num_actions, BATCH_SIZE=32, CAPACITY=10000, GAMMA=0.99):
         self.num_actions = num_actions
 
         self.BATCH_SIZE = BATCH_SIZE
         self.CAPACITY = CAPACITY
         self.GAMMA = GAMMA
 
-        self.memory = ReplayMemory(CAPACITY)
+        self.memory = Memory(CAPACITY)
+        self.env = Environment()
 
         self.model = nn.Sequential()
         self.model.add_module('fc1', nn.Linear(7, 36))
@@ -25,70 +30,64 @@ class Brain:
         self.model.add_module('relu2', nn.ReLU())
         self.model.add_module('fc3', nn.Linear(36, 7*10))
 
-        self.logger = TensorboardLogger()
-
         # print(self.model)
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        self.online_net = QNet(num_inputs, num_actions)
+        self.target_net = QNet(num_inputs, num_actions)
 
-    def replay(self, id, episode):
-        '''Experience Replayでネットワークの結合パラメータを学習'''
+        self.optimizer = optim.Adam(self.online_net.parameters(), lr=0.001)
 
-        if len(self.memory.memory[id]) < self.BATCH_SIZE:
-            return
+    def train(self):
+        epsilon -= 0.00005
+        epsilon = max(epsilon, 0.1)
+        beta += 0.00005
+        beta = min(1, beta)
 
-        transitions = self.memory.sample(self.BATCH_SIZE, id)
-
-        batch = Transition(*zip(*transitions))
-
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action).type(torch.int64)
-        reward_batch = torch.cat(batch.reward)
-
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None])
-
-        self.model.eval()
-
-        state_action_values = self.model(
-            state_batch).gather(1, action_batch).max(1)[0].unsqueeze(1)
-
-        non_final_mask = torch.BoolTensor(tuple(map(lambda s: s is not None,
-                                                    batch.next_state)))
-
-        next_state_values = torch.zeros(self.BATCH_SIZE)
-
-        next_state_values[non_final_mask] = self.model(
-            non_final_next_states).max(1)[0].detach()
-
-        expected_state_action_values = reward_batch + self.GAMMA * next_state_values
-
-        self.model.train()
-
-        loss = F.smooth_l1_loss(state_action_values,
-                                expected_state_action_values.unsqueeze(1))
-
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
+        batch, weights = self.sample(
+            batch_size, self.online_net, self.target_net, beta)
+        loss = QNet.train_model(
+            self.online_net, self.target_net, self.optimizer, batch, weights)
         return loss
 
-    def decide_action(self, state, episode):
-        epsilon = 0.5 * (1 / (episode + 1))
+    def reply(self):
+        self.target_net.load_state_dict(self.online_net.state_dict())
 
-        if epsilon <= np.random.uniform(0, 1):
-            self.model.eval()
-            with torch.no_grad():
-                out = self.model(state).view(7, 10)
-                action = out.max(1)[1]
-                subaction = out.min(1)[1]
+    def first(self):
+        self.online_net.to(device)
+        self.target_net.to(device)
+        self.online_net.train()
+        self.target_net.train()
+
+    def sample(self, batch_size, net, target_net, beta, id):
+        probability_sum = sum(self.memory.memory_probabiliy)
+        p = [probability /
+             probability_sum for probability in self.memory.memory_probabiliy]
+
+        indexes = np.random.choice(
+            np.arange(len(self.memory[id])), batch_size, p=p)
+        transitions = [self.memory[id][idx] for idx in indexes]
+        transitions_p = [p[idx] for idx in indexes]
+        batch = Transition(*zip(*transitions))
+
+        weights = [pow(self.memory.capacity * p_j, -beta)
+                   for p_j in transitions_p]
+        weights = torch.Tensor(weights).to(device)
+        weights = weights / weights.max()
+
+        td_error = QNet.get_loss(net, target_net, batch.state,
+                                 batch.next_state, batch.action, batch.reward, batch.mask)
+        td_error = td_error.detach()
+
+        td_error_idx = 0
+        for idx in indexes:
+            self.memory.memory_probabiliy[idx] = pow(
+                abs(td_error[td_error_idx]) + small_epsilon, alpha).item()
+            td_error_idx += 1
+
+        return batch, weights
+
+    def decide_action(self, state, epsilon):
+        if np.random.rand() <= epsilon:
+            return self.env.action_space.sample()
         else:
-            action = torch.tensor(
-                [[random.random() for _ in range(7)]])
-            subaction = torch.tensor(
-                [[random.uniform(0, action[0][i]) for i in range(7)]])
-            action = action.view(7)
-            subaction = subaction.view(7)
-
-        return action, subaction
+            return self.target_net.get_action(state)

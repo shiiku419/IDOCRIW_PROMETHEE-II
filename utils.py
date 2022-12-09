@@ -1,32 +1,87 @@
+import torch
+import numpy as np
 from collections import namedtuple
-import random
 from environment import Environment
+#from model import QNet
 
 Transition = namedtuple(
-    'Transition', ('state', 'action', 'next_state', 'reward'))
+    'Transition', ('state', 'next_state', 'action', 'reward', 'mask'))
+
+gamma = 0.99
+batch_size = 32
+lr = 0.0001
+initial_exploration = 1000
+goal_score = 200
+log_interval = 10
+update_target = 100
+replay_memory_capacity = 1000
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Multi_Step
+n_step = 1
+
+# PER
+small_epsilon = 0.0001
+alpha = 1
+beta_start = 0.1
+
+# Noisy Net
+sigma_zero = 0.5
+
+# Distributional
+num_support = 8
+V_max = 5
+V_min = -5
 
 
-class ReplayMemory:
-
-    def __init__(self, CAPACITY):
-        self.capacity = CAPACITY
+class Memory(object):
+    def __init__(self, capacity):
+        self.memory = []
+        self.memory_probabiliy = []
+        self.capacity = capacity
+        self.position = 0
         self.env = Environment()
         self.memory = [[] for _ in range(self.env.n_member)]
-        self.index = 0
+        self.reset_local()
 
-    def push(self, state, action, state_next, reward, id):
+    def reset_local(self):
+        self.local_step = 0
+        self.local_state = None
+        self.local_action = None
+        self.local_rewards = []
+
+    def push(self, state, next_state, action, reward, mask):
+        self.local_step += 1
+        self.local_rewards.append(reward)
+        if self.local_step == 1:
+            self.local_state = state
+            self.local_action = action
+        if self.local_step == n_step:
+            reward = 0
+            for idx, local_reward in enumerate(self.local_rewards):
+                reward += (gamma ** idx) * local_reward
+            self.push_to_memory(self.local_state, next_state,
+                                self.local_action, reward, mask)
+            self.reset_local()
+        if mask == 0:
+            self.reset_local()
+
+    def push_to_memory(self, state, next_state, action, reward, mask, id):
+        if len(self.memory[id]) > 0:
+            max_probability = max(self.memory_probabiliy)
+        else:
+            max_probability = small_epsilon
 
         if len(self.memory[id]) < self.capacity:
-            self.memory[id].append(None)
+            self.memory[id].append(Transition(
+                state, next_state, action, reward, mask))
+            self.memory_probabiliy.append(max_probability)
+        else:
+            self.memory[id][self.position] = Transition(
+                state, next_state, action, reward, mask)
+            self.memory_probabiliy[self.position] = max_probability
 
-        action = action.view(1, 7)
-        self.memory[id][self.index] = Transition(
-            state, action, state_next, reward)
-
-        self.index = (self.index + 1) % self.capacity
-
-    def sample(self, batch_size, id):
-        return random.sample(self.memory[id], batch_size)
+        self.position = (self.position + 1) % self.capacity
 
     def __len__(self):
         return len(self.memory)

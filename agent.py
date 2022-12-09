@@ -6,13 +6,17 @@ class Agents:
         self.brain = Brain(num_states, num_actions)
         self.agent_id = agent_id
 
-    def update_q_function(self, id, episode):
-        loss = self.brain.replay(id, episode)
-        return loss
+    def memorize(self, state, next_state, action_one_hot, reward, mask, id):
+        self.brain.memory.push(state, next_state, action_one_hot, reward, mask)
 
-    def get_action(self, state, episode):
-        action, subaction = self.brain.decide_action(state, episode)
+    def get_action(self, state, epsilon):
+        action, subaction = self.brain.decide_action(
+            state, epsilon)
         return action, subaction
 
-    def memorize(self, state, action, state_next, reward, id):
-        self.brain.memory.push(state, action, state_next, reward, id)
+    def update_target_model(self):
+        # Target <- Net
+        self.brain.reply()
+
+    def train(self):
+        self.brain.first()

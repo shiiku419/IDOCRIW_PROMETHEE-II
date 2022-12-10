@@ -111,7 +111,7 @@ class Environment(gym.core.Env):
         return observation
 
     def check_is_done(self, params):
-        if params['post_gsi'] == self.n_member:
+        if params['post_gsi'] == self.n_member & self.time < self.max_step:
             return True
         else:
             return self.time == self.max_step

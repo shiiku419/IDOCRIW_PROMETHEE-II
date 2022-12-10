@@ -29,23 +29,13 @@ class DQN:
 
             self.agents[i].train()
 
-        episode_reward = [0 for _ in range(self.env.n_member)]
-        psi = [0 for _ in range(self.env.n_member)]
-        log_psi = [0 for _ in range(self.env.n_member)]
-        rewards = [0 for _ in range(self.env.n_member)]
-        losses = [0 for _ in range(self.env.n_member)]
-
-        step_size = 0
-        loss_step = 0
-        sum_gsi = 0
-
         running_score = 0
         epsilon = 1.0
         steps = 0
         beta = beta_start
         loss = 0
 
-        for episode in range(3000):
+        for episode in range(50000):
             done = False
 
             score = 0
@@ -53,9 +43,17 @@ class DQN:
             state = torch.Tensor(state)
             state = state.unsqueeze(0)
 
+            episode_reward = [0 for _ in range(self.env.n_member)]
+            psi = [0 for _ in range(self.env.n_member)]
+            log_psi = [0 for _ in range(self.env.n_member)]
+            rewards = [0 for _ in range(self.env.n_member)]
+            losses = [0 for _ in range(self.env.n_member)]
+
+            step_size = 0
+            sum_gsi = 0
+
             while not done:
                 steps += 1
-
                 step_size += 1
 
                 agent = random.sample(
@@ -92,14 +90,10 @@ class DQN:
 
                     if steps > initial_exploration:
                         loss = self.agents[i].train()
-
-                        if loss != None:
-                            losses[i] += loss
-                            loss_step += 1
+                        losses[i] += loss
 
                         if steps % update_target == 0:
-                            self.agents[i].update_target_model(
-                                self.num_states, self.num_actions, i)
+                            self.agents[i].update_target_model()
 
             score = score if score == 500.0 else score + 1
             running_score = 0.99 * running_score + 0.01 * score
@@ -111,9 +105,8 @@ class DQN:
                 print('{} episode | score: {:.2f} | epsilon: {:.2f}'.format(
                     episode, running_score, epsilon))
 
-                if loss_step != 0:
-                    self.logger.log_value(
-                        'agent/avg_loss', {'agent'+str(i): losses[i]/loss_step for i in range(self.env.n_member)}, episode)
+                self.logger.log_value(
+                    'agent/avg_loss', {'agent'+str(i): losses[i] for i in range(self.env.n_member)}, episode)
 
                 self.logger.log_value(
                     'ave_gsi', {'gsi': sum_gsi/step_size}, episode)

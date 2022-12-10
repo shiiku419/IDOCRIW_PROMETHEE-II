@@ -21,3 +21,6 @@ class Agents:
 
     def train(self):
         self.brain.first()
+
+    def trains(self, epsilon, beta, id):
+        self.brain.train(epsilon, beta, id)

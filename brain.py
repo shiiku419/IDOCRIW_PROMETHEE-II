@@ -38,14 +38,14 @@ class Brain:
 
         self.optimizer = optim.Adam(self.online_net.parameters(), lr=0.001)
 
-    def train(self):
+    def train(self, epsilon, beta, id):
         epsilon -= 0.00005
         epsilon = max(epsilon, 0.1)
         beta += 0.00005
         beta = min(1, beta)
 
         batch, weights = self.sample(
-            batch_size, self.online_net, self.target_net, beta)
+            batch_size, self.online_net, self.target_net, beta, id)
         loss = QNet.train_model(
             self.online_net, self.target_net, self.optimizer, batch, weights)
         return loss
@@ -60,13 +60,13 @@ class Brain:
         self.target_net.train()
 
     def sample(self, batch_size, net, target_net, beta, id):
-        probability_sum = sum(self.memory.memory_probabiliy)
+        probability_sum = sum(self.memory.memory_probabiliy[id])
         p = [probability /
-             probability_sum for probability in self.memory.memory_probabiliy]
+             probability_sum for probability in self.memory.memory_probabiliy[id]]
 
         indexes = np.random.choice(
-            np.arange(len(self.memory[id])), batch_size, p=p)
-        transitions = [self.memory[id][idx] for idx in indexes]
+            np.arange(len(self.memory.memory[id])), batch_size, p=p)
+        transitions = [self.memory.memory[id][idx] for idx in indexes]
         transitions_p = [p[idx] for idx in indexes]
         batch = Transition(*zip(*transitions))
 
@@ -81,7 +81,7 @@ class Brain:
 
         td_error_idx = 0
         for idx in indexes:
-            self.memory.memory_probabiliy[idx] = pow(
+            self.memory.memory_probabiliy[id][idx] = pow(
                 abs(td_error[td_error_idx]) + small_epsilon, alpha).item()
             td_error_idx += 1
 

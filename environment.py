@@ -70,7 +70,7 @@ class Environment(gym.core.Env):
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, self.n_member)
 
-        #print(id, post_psi)
+        # print(id, post_psi)
         # print(psi)
 
         self.params['pre_psi'] = psi[id]
@@ -111,7 +111,7 @@ class Environment(gym.core.Env):
         return observation
 
     def check_is_done(self, params):
-        if params['post_gsi'] == self.n_member & self.time < self.max_step:
+        if params['post_gsi'] == self.n_member:
             return True
         else:
             return self.time == self.max_step

@@ -50,9 +50,11 @@ class DQN:
             losses = [0 for _ in range(self.env.n_member)]
 
             step_size = 0
+            loss_step = 0
             sum_gsi = 0
 
-            while not done:
+            for step in range(100):
+
                 steps += 1
                 step_size += 1
 
@@ -88,25 +90,38 @@ class DQN:
                     sum_gsi += info['gsi']
                     rewards[i] = reward
 
+                    if done & k == self.env.n_member:
+                        break
+
                     if steps > initial_exploration:
-                        loss = self.agents[i].train()
-                        losses[i] += loss
+                        print(beta)
+                        loss, beta = self.agents[i].trains(
+                            epsilon, beta, i)
+
+                        if loss != None:
+                            losses[i] += loss
+                            loss_step += 1
 
                         if steps % update_target == 0:
                             self.agents[i].update_target_model()
 
+                # 意見の創発
+                if step % 40 == 0:
+                    self.env.generate()
+
+                if done:
+                    break
+
             score = score if score == 500.0 else score + 1
             running_score = 0.99 * running_score + 0.01 * score
 
-            if done:
-                self.logger.close()
-
             if episode % log_interval == 0:
-                print('{} episode | score: {:.2f} | epsilon: {:.2f}'.format(
-                    episode, running_score, epsilon))
+                print('{} episode | score: {:.2f} | epsilon: {:.2f} | step: {:.2f} | gsi: {:.2f}'.format(
+                    episode, running_score, epsilon, step_size, info['gsi']))
 
-                self.logger.log_value(
-                    'agent/avg_loss', {'agent'+str(i): losses[i] for i in range(self.env.n_member)}, episode)
+                if loss_step != 0:
+                    self.logger.log_value(
+                        'agent/avg_loss', {'agent'+str(i): losses[i]/loss_step for i in range(self.env.n_member)}, episode)
 
                 self.logger.log_value(
                     'ave_gsi', {'gsi': sum_gsi/step_size}, episode)
@@ -133,6 +148,7 @@ class DQN:
                     'step_size', {'step_size': step_size}, episode)
 
                 if running_score > goal_score:
+                    self.logger.close()
                     break
 
 

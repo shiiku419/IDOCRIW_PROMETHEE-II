@@ -57,9 +57,9 @@ class QNet(nn.Module):
         self.z = torch.Tensor(
             [V_min + i * self.dz for i in range(num_support)])
 
-        self.fc = nn.Linear(num_inputs, 128)
-        self.fc_adv = NoisyLinear(128, num_outputs * num_support)
-        self.fc_val = nn.Linear(128, num_support*10)
+        self.fc = nn.Linear(num_inputs, 49)
+        self.fc_adv = NoisyLinear(49, num_outputs * num_support)
+        self.fc_val = nn.Linear(49, num_support)
 
         for m in self.modules():
             if isinstance(m, nn.Linear):

@@ -23,4 +23,5 @@ class Agents:
         self.brain.first()
 
     def trains(self, epsilon, beta, id):
-        self.brain.train(epsilon, beta, id)
+        loss = self.brain.train(epsilon, beta, id)
+        return loss

@@ -41,7 +41,8 @@ class DQN:
             score = 0
             state = self.env.reset()
             state = torch.Tensor(state)
-            state = state.unsqueeze(0)
+
+            state = np.delete(state, 0, 1).view(1, 7)
 
             episode_reward = [0 for _ in range(self.env.n_member)]
             psi = [0 for _ in range(self.env.n_member)]
@@ -70,7 +71,7 @@ class DQN:
                         action, subaction, i)
 
                     next_state = torch.Tensor(next_state)
-                    next_state = next_state.unsqueeze(0)
+                    next_state = np.delete(next_state, 0, 1).view(1, 7)
 
                     mask = 0 if done else 1
                     reward = reward if not done or score == 499 else -1
@@ -95,7 +96,7 @@ class DQN:
 
                     if steps > initial_exploration:
                         print(beta)
-                        loss, beta = self.agents[i].trains(
+                        loss = self.agents[i].trains(
                             epsilon, beta, i)
 
                         if loss != None:

@@ -95,7 +95,11 @@ class DQN:
                         break
 
                     if steps > initial_exploration:
-                        print(beta)
+                        epsilon -= 0.00005
+                        epsilon = max(epsilon, 0.1)
+                        beta += 0.00005
+                        beta = min(1, beta)
+
                         loss = self.agents[i].trains(
                             epsilon, beta, i)
 

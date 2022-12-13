@@ -39,15 +39,12 @@ class Brain:
         self.optimizer = optim.Adam(self.online_net.parameters(), lr=0.001)
 
     def train(self, epsilon, beta, id):
-        epsilon -= 0.00005
-        epsilon = max(epsilon, 0.1)
-        beta += 0.00005
-        beta = min(1, beta)
 
         batch, weights = self.sample(
             batch_size, self.online_net, self.target_net, beta, id)
         loss = QNet.train_model(
             self.online_net, self.target_net, self.optimizer, batch, weights)
+
         return loss
 
     def reply(self):
@@ -97,4 +94,5 @@ class Brain:
             subaction = subaction.view(7)
             return action, subaction
         else:
+            print(self.target_net.get_action(state))
             return self.target_net.get_action(state)

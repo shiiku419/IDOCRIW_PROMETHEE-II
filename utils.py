@@ -12,7 +12,7 @@ batch_size = 36
 lr = 0.0001
 initial_exploration = 1000
 goal_score = 200
-log_interval = 1
+log_interval = 10
 update_target = 100
 replay_memory_capacity = 1000
 device = torch.device("cpu")
@@ -29,7 +29,7 @@ beta_start = 0.1
 sigma_zero = 0.5
 
 # Distributional
-num_support = 7
+num_support = 10
 V_max = 5
 V_min = -5
 

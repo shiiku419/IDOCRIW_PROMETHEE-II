@@ -72,6 +72,7 @@ class QNet(nn.Module):
 
         val = val.view(-1, 1, num_support)
         adv = adv.view(-1, self.num_outputs, num_support)
+
         z = val + (adv - adv.mean(1, keepdim=True))
         z = z.view(-1, self.num_outputs, num_support)
         p = nn.Softmax(dim=2)(z)
@@ -81,7 +82,8 @@ class QNet(nn.Module):
         p = self.forward(input)
         p = p.squeeze(0)
         z_space = self.z.repeat(self.num_outputs, 1)
-        Q = torch.sum(p * z_space, dim=1)
+        #Q = torch.sum(p * z_space, dim=1)
+        Q = p
         return Q
 
     def reset_noise(self):
@@ -89,9 +91,10 @@ class QNet(nn.Module):
 
     def get_action(self, input):
         Q = self.get_Qvalue(input)
-        action = torch.argmax(Q)
-        print('get', action)
-        return action.item()
+        #action = torch.argmax(Q)
+        action = Q.max(1)[1]
+        subaction = Q.min(1)[1]
+        return action, subaction
 
     @classmethod
     def get_m(cls, _rewards, _masks, _prob_next_states_action):
@@ -124,7 +127,7 @@ class QNet(nn.Module):
     def get_loss(cls, online_net, target_net, states, next_states, actions, rewards, masks):
         states = torch.stack(states)
         next_states = torch.stack(next_states)
-        actions = torch.Tensor(actions).int()
+        actions = torch.Tensor(actions)
         rewards = torch.Tensor(rewards)
         masks = torch.Tensor(masks)
 

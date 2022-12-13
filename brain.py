@@ -24,15 +24,6 @@ class Brain:
         self.memory = Memory(CAPACITY)
         self.env = Environment()
 
-        self.model = nn.Sequential()
-        self.model.add_module('fc1', nn.Linear(7, 36))
-        self.model.add_module('relu1', nn.ReLU())
-        self.model.add_module('fc2', nn.Linear(36, 36))
-        self.model.add_module('relu2', nn.ReLU())
-        self.model.add_module('fc3', nn.Linear(36, 7*10))
-
-        # print(self.model)
-
         self.online_net = QNet(num_inputs, num_actions)
         self.target_net = QNet(num_inputs, num_actions)
 
@@ -94,5 +85,4 @@ class Brain:
             subaction = subaction.view(7)
             return action, subaction
         else:
-            print(self.target_net.get_action(state))
             return self.target_net.get_action(state)

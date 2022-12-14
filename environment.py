@@ -22,6 +22,7 @@ class Environment(gym.core.Env):
 
         self.W = None
         self.F = {}
+        self.criterion_type = self.set_criterion()
 
         self.first_ranking = self.get_ranking(
             self.F, self.dataset, self.criterion_type)
@@ -51,6 +52,7 @@ class Environment(gym.core.Env):
 
     def reset(self):
         self.time = 0
+        self.criterion_type = self.set_criterion()
         self.agent = random.sample(range(self.n_member), self.n_member)
         self.dataset = np.random.rand(7, 7)
         self.first_ranking = self.get_ranking(
@@ -63,6 +65,12 @@ class Environment(gym.core.Env):
 
     def seed(self):
         pass
+
+    def set_criterion(self):
+        type = ['max', 'min']
+        prob = [0.7, 0.3]
+        self.criterion_type = np.random.choice(a=type, size=7, p=prob)
+        return self.criterion_type
 
     def get_satisfaction(self, id):
         psi, gsi = self.calc_satisfaction(
@@ -258,9 +266,6 @@ class Environment(gym.core.Env):
         group_rank = group_rank/len(p)
         group_rank = group_rank[np.argsort(group_rank[:, 1])]
         return group_rank
-
-    # Criterion Type: 'max' or 'min'
-    criterion_type = ['max', 'max', 'max', 'max', 'max', 'min', 'min']
 
     # Parameters
 

@@ -2,7 +2,6 @@ import torch
 import numpy as np
 from collections import namedtuple
 from environment import Environment
-# from model import QNet
 
 Transition = namedtuple(
     'Transition', ('state', 'next_state', 'action', 'reward', 'mask'))
@@ -12,7 +11,7 @@ batch_size = 36
 lr = 0.0001
 initial_exploration = 1000
 goal_score = 200
-log_interval = 10
+log_interval = 1
 update_target = 100
 replay_memory_capacity = 1000
 device = torch.device("cpu")

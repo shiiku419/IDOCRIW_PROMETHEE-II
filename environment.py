@@ -11,12 +11,12 @@ class Environment(gym.core.Env):
         self.dataset = np.random.rand(7, 7)
         self.n_member = n_member
         self.n_action = 7
-        self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
+        self.action_space = gym.spaces.Discrete(self.n_action)
         self.observation_space = gym.spaces.Box(
-            low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
+            low=-10, high=10, shape=(self.n_action,))
 
         self.time = 0
-        self.max_step = 100*n_member
+        self.max_step = 100
         self.agent = random.sample(range(self.n_member), self.n_member)
         # TODO問題空間の変数を作って大きくしていく
 
@@ -28,16 +28,17 @@ class Environment(gym.core.Env):
 
         self.ranking = self.first_ranking.copy()
 
+        self.pre_threshold = 0
+
         self.params = {}
 
     def step(self, action, subaction, id):
         self.time += 1
-        self.ranking = self.change_ranking(
+        self.ranking, penalty = self.change_ranking(
             action, subaction, id, self.dataset, self.criterion_type, self.ranking)
         observation = self.get_observation(self.ranking)
-        reward = self.reward_shaping(
-            self.params, self.get_reward(self.params, id))
-        done = self.check_is_done(self.params)
+        reward, post_psi = self.get_reward(penalty, self.params, id)
+        done = self.check_is_done(post_psi)
         info = {'gsi': self.params['post_gsi'],
                 'psi': self.params['post_psi']}
         return observation, reward, done, info
@@ -78,40 +79,33 @@ class Environment(gym.core.Env):
         self.params['pre_gsi'] = gsi
         self.params['post_gsi'] = post_gsi
 
-        return self.params
+        return self.params, post_psi
 
-    def reward_shaping(self, params, reward):
-        if params['post_psi'] - params['pre_psi'] < 0:
-            return -1
-        elif params['post_psi'] - params['pre_psi'] == 0:
-            return 0.5
-        else:
-            return reward
-
-    def get_reward(self, params, id):
-        params = self.get_satisfaction(id)
+    def get_reward(self, penalty, params, id):
+        params, post_psi = self.get_satisfaction(id)
 
         # pre psi
         # print(params)
         reward = 0
-        post_psi = params['post_psi']
-        post_gsi = params['post_gsi']
 
-        main_reward = post_psi
-        sub_reward = post_gsi
+        main_reward = params['post_psi'] - params['pre_psi']
+        sub_reward = params['post_gsi'] - params['pre_gsi']
 
         reward += main_reward + (sub_reward / self.n_member)*random.random()
 
         self.first_ranking = self.ranking
 
-        return reward
+        if penalty < 0:
+            reward = reward + penalty
+
+        return reward, post_psi
 
     def get_observation(self, p):
         observation = self.calc_group_rank(p)
         return observation
 
-    def check_is_done(self, params):
-        if params['post_gsi'] == self.n_member:
+    def check_is_done(self, post_psi):
+        if all(0.8 <= flag for flag in post_psi) == True:
             return True
         else:
             return self.time == self.max_step
@@ -280,6 +274,7 @@ class Environment(gym.core.Env):
             i = self.agent[k]
             P = [random.random() for _ in range(7)]
             Q = [random.uniform(0, P[j])for j in range(7)]
+            self.pre_threshold = sum(Q)
             S = [(P[j]-Q[j]) for j in range(7)]
             F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
 
@@ -291,8 +286,10 @@ class Environment(gym.core.Env):
 
         P = action.view(7)/10
         Q = subaction.view(7)/10
+        penalty = sum(Q) - self.pre_threshold
+        self.pre_threshold = sum(Q)
         S = [(P[j]-Q[j]) for j in range(7)]
 
         ranking[id] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=self.F[id],
                                         sort=False, topn=10, graph=False)
-        return ranking
+        return ranking, penalty

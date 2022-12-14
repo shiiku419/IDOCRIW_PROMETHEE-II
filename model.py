@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import batch_size, num_support, gamma, V_max, V_min, sigma_zero, n_step, device
+from utils import batch_size, num_support, gamma, V_max, V_min, sigma_zero, n_step
 
 
 class NoisyLinear(nn.Module):

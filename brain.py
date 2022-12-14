@@ -4,30 +4,22 @@ import torch.nn as nn
 import torch
 import torch.optim as optim
 from model import QNet
-from utils import Memory, batch_size, device, small_epsilon, alpha
+from utils import Memory, Transition, batch_size, device, small_epsilon, alpha, replay_memory_capacity, lr
 from environment import Environment
-from collections import namedtuple
-
-Transition = namedtuple(
-    'Transition', ('state', 'next_state', 'action', 'reward', 'mask'))
 
 
 class Brain:
 
-    def __init__(self, num_inputs, num_actions, BATCH_SIZE=32, CAPACITY=10000, GAMMA=0.99):
+    def __init__(self, num_inputs, num_actions):
         self.num_actions = num_actions
 
-        self.BATCH_SIZE = BATCH_SIZE
-        self.CAPACITY = CAPACITY
-        self.GAMMA = GAMMA
-
-        self.memory = Memory(CAPACITY)
+        self.memory = Memory(replay_memory_capacity)
         self.env = Environment()
 
         self.online_net = QNet(num_inputs, num_actions)
         self.target_net = QNet(num_inputs, num_actions)
 
-        self.optimizer = optim.Adam(self.online_net.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.online_net.parameters(), lr=lr)
 
     def train(self, epsilon, beta, id):
 
@@ -85,4 +77,5 @@ class Brain:
             subaction = subaction.view(7)
             return action, subaction
         else:
+            print(self.target_net.get_action(state))
             return self.target_net.get_action(state)

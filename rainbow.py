@@ -5,10 +5,10 @@ from environment import Environment
 from agent import Agents
 from log import TensorboardLogger
 
-from utils import beta_start, initial_exploration, batch_size, update_target, goal_score, log_interval, device, replay_memory_capacity, lr
+from utils import beta_start, initial_exploration, update_target, goal_score, log_interval
 
 
-class DQN:
+class Rainbow:
 
     def __init__(self):
         self.env = Environment()
@@ -50,19 +50,20 @@ class DQN:
             rewards = [0 for _ in range(self.env.n_member)]
             losses = [0 for _ in range(self.env.n_member)]
 
-            step_size = 0
+            discuss = 0
             loss_step = 0
             sum_gsi = 0
 
-            for step in range(100):
+            for _ in range(50):
 
                 steps += 1
-                step_size += 1
 
                 agent = random.sample(
                     range(self.env.n_member), self.env.n_member)
 
                 for k in range(self.env.n_member):
+                    discuss += 1
+
                     i = agent[k]
                     action, subaction = self.agents[i].get_action(
                         state, epsilon)
@@ -91,7 +92,7 @@ class DQN:
                     sum_gsi += info['gsi']
                     rewards[i] = reward
 
-                    if done & k == self.env.n_member:
+                    if done:
                         break
 
                     if steps > initial_exploration:
@@ -111,7 +112,7 @@ class DQN:
                             self.agents[i].update_target_model()
 
                 # 意見の創発
-                if step % 40 == 0:
+                if discuss % 20 == 0:
                     self.env.generate()
 
                 if done:
@@ -122,14 +123,11 @@ class DQN:
 
             if episode % log_interval == 0:
                 print('{} episode | score: {:.2f} | epsilon: {:.2f} | step: {:.2f} | gsi: {:.2f}'.format(
-                    episode, running_score, epsilon, step_size, info['gsi']))
+                    episode, running_score, epsilon, discuss, info['gsi']))
 
                 if loss_step != 0:
                     self.logger.log_value(
                         'agent/avg_loss', {'agent'+str(i): losses[i]/loss_step for i in range(self.env.n_member)}, episode)
-
-                self.logger.log_value(
-                    'ave_gsi', {'gsi': sum_gsi/step_size}, episode)
 
                 self.logger.log_value(
                     'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
@@ -138,19 +136,13 @@ class DQN:
                     'agent/psi', {'agent'+str(i): log_psi[i] for i in range(self.env.n_member)}, episode)
 
                 self.logger.log_value(
-                    'gsi', {'gsi': info['gsi']}, episode)
-
-                self.logger.log_value(
                     'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
 
                 self.logger.log_value(
-                    'agent/ave_reward', {'agent'+str(i): episode_reward[i]/step_size for i in range(self.env.n_member)}, episode)
+                    'log/gsi', {'gsi': info['gsi']}, episode)
 
                 self.logger.log_value(
-                    'agent/ave_psi', {'agent'+str(i): psi[i]/step_size for i in range(self.env.n_member)}, episode)
-
-                self.logger.log_value(
-                    'step_size', {'step_size': step_size}, episode)
+                    'log/discuss_length', {'discuss_length': discuss}, episode)
 
                 if running_score > goal_score:
                     self.logger.close()
@@ -158,5 +150,5 @@ class DQN:
 
 
 if __name__ == "__main__":
-    dqn = DQN()
-    dqn.main()
+    run = Rainbow()
+    run.main()

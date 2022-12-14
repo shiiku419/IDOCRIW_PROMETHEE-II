@@ -3,6 +3,10 @@ import numpy as np
 import random
 import math
 from scipy.special import softmax
+import csv
+
+f = open('action.csv', 'w')
+writer = csv.writer(f)
 
 
 class Environment(gym.core.Env):
@@ -42,6 +46,9 @@ class Environment(gym.core.Env):
         done = self.check_is_done(post_psi)
         info = {'gsi': self.params['post_gsi'],
                 'psi': self.params['post_psi']}
+        if done:
+            writer.writerow(action)
+            writer.writerow(subaction)
         return observation, reward, done, info
 
     def generate(self):
@@ -267,23 +274,26 @@ class Environment(gym.core.Env):
         group_rank = group_rank[np.argsort(group_rank[:, 1])]
         return group_rank
 
-    # Parameters
-
     def get_ranking(self, F, dataset, criterion_type):
-        self.W = self.idocriw_method(dataset, criterion_type)
+        self.W = [self.idocriw_method(dataset, criterion_type)]*self.n_member
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         p = {}
 
         for k in range(self.n_member):
             i = self.agent[k]
+
+            self.W[i] = self.W[i]*random.random()
+
             P = [random.random() for _ in range(7)]
             Q = [random.uniform(0, P[j])for j in range(7)]
-            self.pre_threshold = sum(Q)
             S = [(P[j]-Q[j]) for j in range(7)]
+
             F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
 
-            p[i] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=F[i],
+            self.pre_threshold = sum(S)
+
+            p[i] = self.promethee_ii(dataset, W=self.W[i], Q=Q, S=S, P=P, F=F[i],
                                      sort=False, topn=10, graph=False)
         return p
 
@@ -291,10 +301,11 @@ class Environment(gym.core.Env):
 
         P = action.view(7)/10
         Q = subaction.view(7)/10
-        penalty = sum(Q) - self.pre_threshold
-        self.pre_threshold = sum(Q)
         S = [(P[j]-Q[j]) for j in range(7)]
 
-        ranking[id] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=self.F[id],
+        penalty = sum(S) - self.pre_threshold
+        self.pre_threshold = sum(S)
+
+        ranking[id] = self.promethee_ii(dataset, W=self.W[id], Q=Q, S=S, P=P, F=self.F[id],
                                         sort=False, topn=10, graph=False)
         return ranking, penalty

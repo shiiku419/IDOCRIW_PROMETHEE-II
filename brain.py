@@ -3,9 +3,13 @@ import random
 import torch.nn as nn
 import torch
 import torch.optim as optim
+from collections import namedtuple
 from model import QNet
-from utils import Memory, Transition, batch_size, device, small_epsilon, alpha, replay_memory_capacity, lr
+from utils import Memory, batch_size, device, small_epsilon, alpha, replay_memory_capacity, lr
 from environment import Environment
+
+Transition = namedtuple(
+    'Transition', ('state', 'next_state', 'action', 'reward', 'mask'))
 
 
 class Brain:

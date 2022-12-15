@@ -20,7 +20,7 @@ class Environment(gym.core.Env):
             low=-10, high=10, shape=(self.n_action,))
 
         self.time = 0
-        self.max_step = 100
+        self.max_step = 50
         self.agent = random.sample(range(self.n_member), self.n_member)
         # TODO問題空間の変数を作って大きくしていく
 
@@ -86,9 +86,6 @@ class Environment(gym.core.Env):
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, self.n_member)
 
-        # print(id, post_psi)
-        # print(psi)
-
         self.params['pre_psi'] = psi[id]
         self.params['post_psi'] = post_psi[id]
         self.params['pre_gsi'] = gsi
@@ -99,8 +96,6 @@ class Environment(gym.core.Env):
     def get_reward(self, penalty, params, id):
         params, post_psi = self.get_satisfaction(id)
 
-        # pre psi
-        # print(params)
         reward = 0
 
         main_reward = params['post_psi'] - params['pre_psi']

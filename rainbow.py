@@ -75,7 +75,6 @@ class Rainbow:
                     next_state = np.delete(next_state, 0, 1).view(1, 7)
 
                     mask = 0 if done else 1
-                    reward = reward if not done or score == 499 else -1
                     action_one_hot = np.zeros(7)
 
                     action_one_hot[torch.argmax(action)] = 1
@@ -122,8 +121,8 @@ class Rainbow:
             running_score = 0.99 * running_score + 0.01 * score
 
             if episode % log_interval == 0:
-                print('{} episode | score: {:.2f} | epsilon: {:.2f} | step: {:.2f} | gsi: {:.2f}'.format(
-                    episode, running_score, epsilon, discuss, info['gsi']))
+                print('{} episode | score: {:.2f} | epsilon: {:.2f} | step: {:.2f} | reward {:.2f} | gsi: {:.2f}'.format(
+                    episode, running_score, epsilon, discuss, reward, info['gsi']))
 
                 if loss_step != 0:
                     self.logger.log_value(

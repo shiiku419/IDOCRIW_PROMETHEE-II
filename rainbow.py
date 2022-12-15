@@ -91,7 +91,7 @@ class Rainbow:
                     sum_gsi += info['gsi']
                     rewards[i] = reward
 
-                    if done:
+                    if done & k == self.env.n_member:
                         break
 
                     if steps > initial_exploration:

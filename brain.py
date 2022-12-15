@@ -81,5 +81,4 @@ class Brain:
             subaction = subaction.view(7)
             return action, subaction
         else:
-            print(self.target_net.get_action(state))
             return self.target_net.get_action(state)

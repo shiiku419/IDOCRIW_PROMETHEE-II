@@ -105,8 +105,16 @@ class Environment(gym.core.Env):
 
         self.first_ranking = self.ranking
 
+        if main_reward < 0:
+            reward = -1
+        elif main_reward == 0:
+            reward = 0.5
+
         if penalty < 0:
-            reward = reward + penalty
+            reward = penalty
+
+        if reward == 0:
+            reward = 0.1
 
         return reward, post_psi
 

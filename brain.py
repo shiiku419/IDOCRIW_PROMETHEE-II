@@ -45,8 +45,16 @@ class Brain:
 
     def sample(self, batch_size, net, target_net, beta, id):
         probability_sum = sum(self.memory.memory_probabiliy[id])
+
         p = [probability /
              probability_sum for probability in self.memory.memory_probabiliy[id]]
+
+        if np.isnan(probability_sum):
+            probability_sum = sum(np.nan_to_num(
+                self.memory.memory_probabiliy[id], nan=0.0001))
+
+            p = [probability /
+                 probability_sum for probability in np.nan_to_num(self.memory.memory_probabiliy[id], nan=0.0001)]
 
         indexes = np.random.choice(
             np.arange(len(self.memory.memory[id])), batch_size, p=p)

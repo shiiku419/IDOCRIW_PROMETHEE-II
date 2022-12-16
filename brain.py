@@ -43,6 +43,7 @@ class Brain:
 
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action).type(torch.int64)
+        subaction_batch = torch.cat(batch.subaction).type(torch.int64)
         reward_batch = torch.cat(batch.reward)
 
         non_final_next_states = torch.cat([s for s in batch.next_state
@@ -52,6 +53,9 @@ class Brain:
 
         state_action_values = self.model(
             state_batch).gather(1, action_batch).max(1)[0].unsqueeze(1)
+
+        substate_action_values = self.model(
+            state_batch).gather(1, subaction_batch).max(1)[0].unsqueeze(1)
 
         non_final_mask = torch.BoolTensor(tuple(map(lambda s: s is not None,
                                                     batch.next_state)))
@@ -65,7 +69,7 @@ class Brain:
 
         self.model.train()
 
-        loss = F.smooth_l1_loss(state_action_values,
+        loss = F.smooth_l1_loss(state_action_values + substate_action_values,
                                 expected_state_action_values.unsqueeze(1))
 
         self.optimizer.zero_grad()

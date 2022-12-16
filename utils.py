@@ -3,7 +3,7 @@ import random
 from environment import Environment
 
 Transition = namedtuple(
-    'Transition', ('state', 'action', 'next_state', 'reward'))
+    'Transition', ('state', 'action', 'subaction', 'next_state', 'reward'))
 
 
 class ReplayMemory:
@@ -14,14 +14,14 @@ class ReplayMemory:
         self.memory = [[] for _ in range(self.env.n_member)]
         self.index = 0
 
-    def push(self, state, action, state_next, reward, id):
+    def push(self, state, action, subaction, state_next, reward, id):
 
         if len(self.memory[id]) < self.capacity:
             self.memory[id].append(None)
 
         action = action.view(1, 7)
         self.memory[id][self.index] = Transition(
-            state, action, state_next, reward)
+            state, action, subaction, state_next, reward)
 
         self.index = (self.index + 1) % self.capacity
 

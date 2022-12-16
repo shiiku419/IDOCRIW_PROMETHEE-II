@@ -20,6 +20,7 @@ class DQN:
     def run(self):
 
         for episode in range(50001):
+            done = False
             observation = self.env.reset()
             observation = np.delete(observation, 0, 1)
 
@@ -34,9 +35,10 @@ class DQN:
 
             step_size = 0
             loss_step = 0
+            discuss = 0
             sum_gsi = 0
 
-            for step in range(100):
+            while not done:
 
                 step_size += 1
 
@@ -44,6 +46,8 @@ class DQN:
                     range(self.env.n_member), self.env.n_member)
 
                 for k in range(self.env.n_member):
+
+                    discuss += 1
 
                     i = agent[k]
 
@@ -62,7 +66,7 @@ class DQN:
 
                     reward = torch.FloatTensor([reward])
 
-                    if done & k == self.env.n_member:
+                    if done:
                         state_next = None
                         break
 
@@ -73,7 +77,7 @@ class DQN:
                             state_next).float().view(1, 7)
 
                     self.agents[i].memorize(
-                        state, action.view(1, 7), state_next, reward, i)
+                        state, action.view(1, 7), subaction.view(1, 7), state_next, reward, i)
 
                     loss = self.agents[i].update_q_function(i, episode)
 
@@ -84,11 +88,15 @@ class DQN:
                     state = state_next
 
                 # 意見の創発
-                if step % 40 == 0:
+                if discuss % 20 == 0:
                     self.env.generate()
 
                 if done:
                     break
+
+            if episode % 10 == 0:
+                print('{} episode | step: {:.2f} | reward {:.2f} | gsi: {:.2f}'.format(
+                    episode, discuss, reward, info['gsi']))
 
             print('epispde'+str(episode))
 
@@ -97,7 +105,7 @@ class DQN:
                     'agent/avg_loss', {'agent'+str(i): losses[i]/loss_step for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
-                'ave_gsi', {'gsi': sum_gsi/step_size}, episode)
+                'log/ave_gsi', {'gsi': sum_gsi/step_size}, episode)
 
             self.logger.log_value(
                 'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
@@ -106,7 +114,7 @@ class DQN:
                 'agent/psi', {'agent'+str(i): log_psi[i] for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
-                'gsi', {'gsi': info['gsi']}, episode)
+                'log/gsi', {'gsi': info['gsi']}, episode)
 
             self.logger.log_value(
                 'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
@@ -118,7 +126,7 @@ class DQN:
                 'agent/ave_psi', {'agent'+str(i): psi[i]/step_size for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
-                'step_size', {'step_size': step_size}, episode)
+                'log/step_size', {'step_size': step_size}, episode)
 
             self.logger.writer.flush()
 

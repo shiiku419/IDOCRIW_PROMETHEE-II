@@ -97,16 +97,26 @@ class Environment(gym.core.Env):
         params, post_psi = self.get_satisfaction(id)
 
         reward = 0
+        clip = 0
 
         main_reward = params['post_psi'] - params['pre_psi']
         sub_reward = params['post_gsi'] - params['pre_gsi']
 
-        reward += main_reward + (sub_reward / self.n_member)*random.random()
+        clip += main_reward + (sub_reward / self.n_member)*random.random()
 
         self.first_ranking = self.ranking
 
+        if clip > 0:
+            reward = 1
+        elif clip < 0:
+            reward = -1
+        else:
+            reward = 0.5
+
         if penalty < 0:
-            reward = penalty
+            reward += penalty
+        else:
+            reward += 1
 
         return reward, post_psi
 

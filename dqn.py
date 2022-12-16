@@ -31,6 +31,7 @@ class DQN:
             psi = [0 for _ in range(self.env.n_member)]
             log_psi = [0 for _ in range(self.env.n_member)]
             rewards = [0 for _ in range(self.env.n_member)]
+            gap = [0 for _ in range(self.env.n_member)]
             losses = [0 for _ in range(self.env.n_member)]
 
             step_size = 0
@@ -61,7 +62,9 @@ class DQN:
 
                     psi[i] += info['psi']
                     log_psi[i] = info['psi']
+                    gap[i] = info['gap']
                     sum_gsi += info['gsi']
+
                     rewards[i] = reward
 
                     reward = torch.FloatTensor([reward])
@@ -105,9 +108,6 @@ class DQN:
                     'agent/avg_loss', {'agent'+str(i): losses[i]/loss_step for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
-                'log/ave_gsi', {'gsi': sum_gsi/step_size}, episode)
-
-            self.logger.log_value(
                 'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
@@ -117,13 +117,13 @@ class DQN:
                 'log/gsi', {'gsi': info['gsi']}, episode)
 
             self.logger.log_value(
+                'agent/ave_gap', {'agent'+str(i): gap[i]/step for i in range(self.env.n_member)}, episode)
+
+            self.logger.log_value(
                 'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
                 'agent/ave_reward', {'agent'+str(i): episode_reward[i]/step_size for i in range(self.env.n_member)}, episode)
-
-            self.logger.log_value(
-                'agent/ave_psi', {'agent'+str(i): psi[i]/step_size for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
                 'log/step_size', {'step_size': step_size}, episode)

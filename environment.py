@@ -48,8 +48,8 @@ class Environment(gym.core.Env):
                 'psi': self.params['post_psi'],
                 'gap': penalty}
         if done:
-            writer.writerow(action)
-            writer.writerow(subaction)
+            writer.writerow([id, '+', action])
+            writer.writerow([id, '-', subaction])
         return observation, reward, done, info
 
     def generate(self):

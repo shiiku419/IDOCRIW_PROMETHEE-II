@@ -20,7 +20,7 @@ class Environment(gym.core.Env):
             low=-10, high=10, shape=(self.n_action,))
 
         self.time = 0
-        self.max_step = 50
+        self.max_step = 100
         self.agent = random.sample(range(self.n_member), self.n_member)
         # TODO問題空間の変数を作って大きくしていく
 
@@ -105,16 +105,8 @@ class Environment(gym.core.Env):
 
         self.first_ranking = self.ranking
 
-        if main_reward < 0:
-            reward = -1
-        elif main_reward == 0:
-            reward = 0.5
-
         if penalty < 0:
             reward = penalty
-
-        if reward == 0:
-            reward = 0.1
 
         return reward, post_psi
 

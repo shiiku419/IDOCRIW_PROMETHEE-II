@@ -54,7 +54,7 @@ class Rainbow:
             loss_step = 0
             sum_gsi = 0
 
-            for _ in range(50):
+            while not done:
 
                 steps += 1
 
@@ -76,10 +76,13 @@ class Rainbow:
 
                     mask = 0 if done else 1
                     action_one_hot = np.zeros(7)
+                    subaction_one_hot = np.zeros(7)
+                    reward = reward if not done or score == 499 else -1
 
                     action_one_hot[torch.argmax(action)] = 1
+                    subaction_one_hot[torch.argmax(action)] = 1
                     self.agents[i].memorize(state, next_state,
-                                            action_one_hot, reward, mask, i)
+                                            action_one_hot, subaction_one_hot, reward, mask, i)
 
                     score += reward
                     state = next_state
@@ -91,7 +94,7 @@ class Rainbow:
                     sum_gsi += info['gsi']
                     rewards[i] = reward
 
-                    if done & k == self.env.n_member:
+                    if done:
                         break
 
                     if steps > initial_exploration:

@@ -9,7 +9,7 @@ from utils import Memory, batch_size, device, small_epsilon, alpha, replay_memor
 from environment import Environment
 
 Transition = namedtuple(
-    'Transition', ('state', 'next_state', 'action', 'reward', 'mask'))
+    'Transition', ('state', 'next_state', 'action', 'subaction', 'reward', 'mask'))
 
 
 class Brain:
@@ -68,7 +68,7 @@ class Brain:
         weights = weights / weights.max()
 
         td_error = QNet.get_loss(net, target_net, batch.state,
-                                 batch.next_state, batch.action, batch.reward, batch.mask)
+                                 batch.next_state, batch.action, batch.subaction, batch.reward, batch.mask)
         td_error = td_error.detach()
 
         td_error_idx = 0

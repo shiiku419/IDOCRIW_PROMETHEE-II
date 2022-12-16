@@ -117,7 +117,7 @@ class DQN:
                 'log/gsi', {'gsi': info['gsi']}, episode)
 
             self.logger.log_value(
-                'agent/ave_gap', {'agent'+str(i): gap[i]/step for i in range(self.env.n_member)}, episode)
+                'agent/ave_gap', {'agent'+str(i): gap[i]/step_size for i in range(self.env.n_member)}, episode)
 
             self.logger.log_value(
                 'agent/episode_reward', {'agent'+str(i): episode_reward[i] for i in range(self.env.n_member)}, episode)

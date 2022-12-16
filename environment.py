@@ -45,7 +45,8 @@ class Environment(gym.core.Env):
         reward, post_psi = self.get_reward(penalty, self.params, id)
         done = self.check_is_done(post_psi)
         info = {'gsi': self.params['post_gsi'],
-                'psi': self.params['post_psi']}
+                'psi': self.params['post_psi'],
+                'gap': penalty}
         if done:
             writer.writerow(action)
             writer.writerow(subaction)

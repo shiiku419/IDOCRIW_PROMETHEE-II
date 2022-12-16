@@ -49,14 +49,17 @@ class Rainbow:
             log_psi = [0 for _ in range(self.env.n_member)]
             rewards = [0 for _ in range(self.env.n_member)]
             losses = [0 for _ in range(self.env.n_member)]
+            gap = [0 for _ in range(self.env.n_member)]
 
             discuss = 0
+            step = 0
             loss_step = 0
             sum_gsi = 0
 
             while not done:
 
                 steps += 1
+                step += 1
 
                 agent = random.sample(
                     range(self.env.n_member), self.env.n_member)
@@ -93,6 +96,7 @@ class Rainbow:
                     log_psi[i] = info['psi']
                     sum_gsi += info['gsi']
                     rewards[i] = reward
+                    gap[i] = info['gap']
 
                     if done:
                         break
@@ -114,7 +118,7 @@ class Rainbow:
                             self.agents[i].update_target_model()
 
                 # 意見の創発
-                if discuss % 20 == 0:
+                if discuss % 40 == 0:
                     self.env.generate()
 
                 if done:
@@ -133,6 +137,12 @@ class Rainbow:
 
                 self.logger.log_value(
                     'agent/reward', {'agent'+str(i): rewards[i] for i in range(self.env.n_member)}, episode)
+
+                self.logger.log_value(
+                    'agent/ave_reward', {'agent'+str(i): rewards[i]/step for i in range(self.env.n_member)}, episode)
+
+                self.logger.log_value(
+                    'agent/ave_gap', {'agent'+str(i): gap[i]/step for i in range(self.env.n_member)}, episode)
 
                 self.logger.log_value(
                     'agent/psi', {'agent'+str(i): log_psi[i] for i in range(self.env.n_member)}, episode)

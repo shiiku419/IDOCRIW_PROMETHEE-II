@@ -82,10 +82,10 @@ class Environment(gym.core.Env):
 
     def get_satisfaction(self, id):
         psi, gsi = self.calc_satisfaction(
-            self.distance, self.first_ranking, 1, self.n_member)
+            self.distance, self.first_ranking, 1, 7)
 
         post_psi, post_gsi = self.calc_satisfaction(
-            self.distance, self.ranking, 1, self.n_member)
+            self.distance, self.ranking, 1, 7)
 
         self.params['pre_psi'] = psi[id]
         self.params['post_psi'] = post_psi[id]
@@ -256,7 +256,7 @@ class Environment(gym.core.Env):
         result = 0
         satisfaction = 0
         group_satisfaction = 0
-        satisfaction_index = [0 for _ in range(5)]
+        satisfaction_index = [0 for _ in range(self.n_member)]
         g_ranks = self.calc_group_rank(p)
         for k in range(0, len(p)):
             i = self.agent[k]

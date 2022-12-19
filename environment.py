@@ -115,9 +115,11 @@ class Environment(gym.core.Env):
             reward = 0.5
 
         if penalty < 0:
-            reward += penalty
+            reward += -5
+        elif penalty == 0:
+            reward += -1
         else:
-            reward += 1
+            reward += 5
 
         return reward, post_psi
 
@@ -126,7 +128,7 @@ class Environment(gym.core.Env):
         return observation
 
     def check_is_done(self, post_psi):
-        if all(0.8 <= flag for flag in post_psi) == True:
+        if all(0.9 <= flag for flag in post_psi) == True:
             return True
         else:
             return self.time == self.max_step

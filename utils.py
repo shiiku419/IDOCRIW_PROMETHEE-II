@@ -8,12 +8,12 @@ Transition = namedtuple(
 
 gamma = 0.99
 batch_size = 36
-lr = 0.0001
+lr = 0.001
 initial_exploration = 1000
 goal_score = 200
 log_interval = 10
 update_target = 100
-replay_memory_capacity = 1000
+replay_memory_capacity = 10000
 device = torch.device("cpu")
 
 # Multi_Step

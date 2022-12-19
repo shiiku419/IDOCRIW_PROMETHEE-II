@@ -35,7 +35,7 @@ class Rainbow:
         beta = beta_start
         loss = 0
 
-        for episode in range(50000):
+        for episode in range(100000):
             done = False
 
             score = 0

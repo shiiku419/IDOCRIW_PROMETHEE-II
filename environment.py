@@ -312,7 +312,6 @@ class Environment(gym.core.Env):
         S = [(P[j]-Q[j]) for j in range(7)]
 
         penalty = sum(S) - self.pre_threshold
-        self.pre_threshold = sum(S)
 
         ranking[id] = self.promethee_ii(dataset, W=self.W[id], Q=Q, S=S, P=P, F=self.F[id],
                                         sort=False, topn=10, graph=False)

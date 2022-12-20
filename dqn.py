@@ -99,9 +99,7 @@ class DQN:
 
             if episode % 10 == 0:
                 print('{} episode | step: {:.2f} | reward {:.2f} | gsi: {:.2f}'.format(
-                    episode, discuss, reward, info['gsi']))
-
-            print('epispde'+str(episode))
+                    episode, discuss, reward[0], info['gsi']))
 
             if loss_step != 0:
                 self.logger.log_value(

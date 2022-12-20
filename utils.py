@@ -7,7 +7,7 @@ Transition = namedtuple(
     'Transition', ('state', 'next_state', 'action', 'subaction', 'reward', 'mask'))
 
 gamma = 0.99
-batch_size = 36
+batch_size = 32
 lr = 0.001
 initial_exploration = 1000
 goal_score = 200

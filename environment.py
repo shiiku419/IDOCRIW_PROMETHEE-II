@@ -295,7 +295,7 @@ class Environment(gym.core.Env):
 
             P = [random.random() for _ in range(7)]
             Q = [random.uniform(0, P[j])for j in range(7)]
-            S = [(P[j]-Q[j]) for j in range(7)]
+            S = [(P[j]+Q[j]/2) for j in range(7)]
 
             F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
 
@@ -309,7 +309,7 @@ class Environment(gym.core.Env):
 
         P = action.view(7)/10
         Q = subaction.view(7)/10
-        S = [(P[j]-Q[j]) for j in range(7)]
+        S = [(P[j]+Q[j])/2 for j in range(7)]
 
         penalty = sum(S) - self.pre_threshold
 

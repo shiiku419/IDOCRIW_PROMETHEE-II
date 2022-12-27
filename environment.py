@@ -112,14 +112,14 @@ class Environment(gym.core.Env):
         elif clip < 0:
             reward = -1
         else:
-            reward = 0.5
+            reward = 0
 
         if penalty < 0:
-            reward += -5
-        elif penalty == 0:
             reward += -1
+        elif penalty == 0:
+            reward += 0
         else:
-            reward += 5
+            reward += 1
 
         return reward, post_psi
 

@@ -308,7 +308,8 @@ class Environment(gym.core.Env):
         return group_rank
 
     def get_ranking(self, F, dataset, criterion_type):
-        self.W = [self.solution()]*self.n_member
+        noise = [np.random.random(7) for _ in range(self.n_member)]
+        self.W = [self.solution()*noise[i] for i in range(5)]
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         p = {}

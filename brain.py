@@ -82,9 +82,9 @@ class Brain:
     def decide_action(self, state, epsilon):
         if np.random.rand() <= epsilon:
             action = torch.tensor(
-                [[random.random() for _ in range(7)]])
+                [[random.randint(0, 10)/10 for _ in range(7)]])
             subaction = torch.tensor(
-                [[random.uniform(0, action[0][i]) for i in range(7)]])
+                [[random.randint(0, action[0][i]*10)/10 for i in range(7)]])
             action = action.view(7)
             subaction = subaction.view(7)
             return action, subaction

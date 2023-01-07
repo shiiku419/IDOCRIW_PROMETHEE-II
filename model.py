@@ -82,8 +82,7 @@ class QNet(nn.Module):
         p = self.forward(input)
         p = p.squeeze(0)
         z_space = self.z.repeat(self.num_outputs, 1)
-        # Q = torch.sum(p * z_space, dim=1)
-        Q = p
+        Q = torch.sum(p * z_space, dim=1)
         return Q
 
     def reset_noise(self):
@@ -91,9 +90,8 @@ class QNet(nn.Module):
 
     def get_action(self, input):
         Q = self.get_Qvalue(input)
-        # action = torch.argmax(Q)
-        action = Q.max(1)[1]
-        subaction = Q.min(1)[1]
+        action = Q
+        subaction = [0, 0, 0, 0, 0, 0, 0]
         return action, subaction
 
     @classmethod

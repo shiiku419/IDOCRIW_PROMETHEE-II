@@ -30,6 +30,8 @@ class Environment(gym.core.Env):
             self.dataset, self.criterion_type)
 
         self.W = None
+        self.P = {}
+        self.Q = {}
         self.F = {}
 
         self.first_ranking = self.get_ranking(
@@ -317,26 +319,25 @@ class Environment(gym.core.Env):
         for k in range(self.n_member):
             i = self.agent[k]
 
-            P = [random.random() for _ in range(7)]
-            Q = [random.uniform(0, P[j])for j in range(7)]
-            S = [(P[j]+Q[j]/2) for j in range(7)]
+            self.P[i] = [random.random() for _ in range(7)]
+            self.Q[i] = [random.uniform(0, self.P[i][j])for j in range(7)]
+            S = [(self.P[i][j]+self.Q[i][j]/2) for j in range(7)]
 
             F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
 
             self.pre_threshold = sum(S)
 
-            p[i] = self.promethee_ii(dataset, W=self.W[i], Q=Q, S=S, P=P, F=F[i],
+            p[i] = self.promethee_ii(dataset, W=self.W[i], Q=self.Q[i], S=S, P=self.P[i], F=F[i],
                                      sort=False, topn=10, graph=False)
         return p
 
     def change_ranking(self, action, subaction, id, dataset, criterion_type, ranking):
 
-        P = action.view(7)/10
-        Q = subaction.view(7)/10
-        S = [(P[j]+Q[j])/2 for j in range(7)]
+        self.P[id] += action.view(7)
+        S = [(self.P[id][j]+self.Q[id][j])/2 for j in range(7)]
 
         penalty = sum(S) - self.pre_threshold
 
-        ranking[id] = self.promethee_ii(dataset, W=self.W[id], Q=Q, S=S, P=P, F=self.F[id],
+        ranking[id] = self.promethee_ii(dataset, W=self.W[id], Q=self.Q[id], S=S, P=self.P[id], F=self.F[id],
                                         sort=False, topn=10, graph=False)
         return ranking, penalty

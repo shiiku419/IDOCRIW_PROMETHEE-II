@@ -62,7 +62,7 @@ class Environment(gym.core.Env):
         random = np.random.randint(0, 4)
         index = np.where(self.ranking[random] ==
                          self.ranking[random].max(0)[1])[0][0]
-        self.dataset[index] = subaction
+        self.dataset[index] = subaction.tolist()
 
     def reset(self):
         self.time = 0

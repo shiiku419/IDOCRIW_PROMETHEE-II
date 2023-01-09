@@ -46,7 +46,7 @@ class Rainbow:
             substate = torch.Tensor(substate)
 
             state = np.delete(state, 0, 1).view(1, 7)
-            substate = np.delete(substate, 0, 1).view(1, 7)
+            substate = substate[0].view(1, 7)
 
             episode_reward = [0 for _ in range(self.env.n_member)]
             psi = [0 for _ in range(self.env.n_member)]
@@ -73,7 +73,7 @@ class Rainbow:
 
                     i = agent[k]
                     action, subaction = self.agents[i].get_action(
-                        state, self.env.dataset, epsilon)
+                        state, substate, epsilon)
 
                     next_state, next_substate, reward, done, info = self.env.step(
                         action, subaction, i)
@@ -82,7 +82,7 @@ class Rainbow:
                     next_state = np.delete(next_state, 0, 1).view(1, 7)
 
                     next_substate = torch.Tensor(next_substate)
-                    next_substate = np.delete(next_substate, 0, 1).view(1, 7)
+                    next_substate = next_substate[0].view(1, 7)
 
                     mask = 0 if done else 1
                     action_one_hot = np.zeros(7)

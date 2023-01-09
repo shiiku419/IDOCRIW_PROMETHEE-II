@@ -49,12 +49,12 @@ class Memory(object):
         self.local_subaction = None
         self.local_rewards = [[] for _ in range(self.env.n_member)]
 
-    def push(self, state, next_state, next_substate, action, subaction, reward, mask, id):
+    def push(self, state, substate, next_state, next_substate, action, subaction, reward, mask, id):
         self.local_step += 1
         self.local_rewards[id].append(reward)
         if self.local_step == 1:
             self.local_state = state
-            self.local_substate = next_substate
+            self.local_substate = substate
             self.local_action = action
             self.local_subaction = subaction
         if self.local_step == n_step:

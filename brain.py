@@ -83,8 +83,6 @@ class Brain:
         if np.random.rand() <= epsilon:
             action = torch.tensor(
                 [[random.randint(0, 10)/10 for _ in range(7)]])
-            subaction = torch.tensor(
-                [[random.randint(0, action[0][i]*10)/10 for i in range(7)]])
             substate[0] = substate[0]*np.random.normal(1, 0.2, 1)
             action = action.view(7)
             subaction = substate[0].view(7)

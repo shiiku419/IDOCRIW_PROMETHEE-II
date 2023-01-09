@@ -333,7 +333,7 @@ class Environment(gym.core.Env):
 
     def change_ranking(self, action, subaction, id, dataset, criterion_type, ranking):
 
-        self.P[id] += action.view(7)
+        self.P[id] = [x+y for (x, y) in zip(self.P[id], action.tolist())]
         S = [(self.P[id][j]+self.Q[id][j])/2 for j in range(7)]
 
         penalty = sum(S) - self.pre_threshold

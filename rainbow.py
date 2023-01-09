@@ -118,10 +118,8 @@ class Rainbow:
                             self.agents[i].update_target_model()
 
                 # 意見の創発
-                '''
                 if discuss % 30 == 0:
                     self.env.generate()
-                '''
 
                 if done:
                     break

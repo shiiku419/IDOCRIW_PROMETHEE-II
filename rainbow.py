@@ -42,7 +42,11 @@ class Rainbow:
             state = self.env.reset()
             state = torch.Tensor(state)
 
+            substate = self.env.dataset
+            substate = torch.Tensor(substate)
+
             state = np.delete(state, 0, 1).view(1, 7)
+            substate = np.delete(substate, 0, 1).view(1, 7)
 
             episode_reward = [0 for _ in range(self.env.n_member)]
             psi = [0 for _ in range(self.env.n_member)]
@@ -69,13 +73,16 @@ class Rainbow:
 
                     i = agent[k]
                     action, subaction = self.agents[i].get_action(
-                        state, epsilon)
+                        state, self.env.dataset, epsilon)
 
-                    next_state, reward, done, info = self.env.step(
+                    next_state, next_substate, reward, done, info = self.env.step(
                         action, subaction, i)
 
                     next_state = torch.Tensor(next_state)
                     next_state = np.delete(next_state, 0, 1).view(1, 7)
+
+                    next_substate = torch.Tensor(next_substate)
+                    next_substate = np.delete(next_substate, 0, 1).view(1, 7)
 
                     mask = 0 if done else 1
                     action_one_hot = np.zeros(7)
@@ -84,7 +91,7 @@ class Rainbow:
 
                     action_one_hot[torch.argmax(action)] = 1
                     subaction_one_hot[torch.argmax(action)] = 1
-                    self.agents[i].memorize(state, next_state,
+                    self.agents[i].memorize(state, substate, next_state, next_substate,
                                             action_one_hot, subaction_one_hot, reward, mask, i)
 
                     score += reward
@@ -118,8 +125,8 @@ class Rainbow:
                             self.agents[i].update_target_model()
 
                 # 意見の創発
-                if discuss % 30 == 0:
-                    self.env.generate()
+                if discuss % 35 == 0:
+                    self.env.generate(subaction)
 
                 if done:
                     break

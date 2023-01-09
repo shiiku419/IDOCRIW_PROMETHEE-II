@@ -88,10 +88,11 @@ class QNet(nn.Module):
     def reset_noise(self):
         self.fc_adv.reset_noise()
 
-    def get_action(self, input):
+    def get_action(self, input, subinput):
         Q = self.get_Qvalue(input)
+        subQ = self.get_Qvalue(subinput)
         action = Q
-        subaction = [0, 0, 0, 0, 0, 0, 0]
+        subaction = subQ
         return action, subaction
 
     @classmethod
@@ -125,9 +126,11 @@ class QNet(nn.Module):
         return m_prob
 
     @ classmethod
-    def get_loss(cls, online_net, target_net, states, next_states, actions, subactions,  rewards, masks):
+    def get_loss(cls, online_net, target_net, states, substates, next_states, next_substates, actions, subactions,  rewards, masks):
         states = torch.stack(states)
         next_states = torch.stack(next_states)
+        substates = torch.stack(substates)
+        next_substates = torch.stack(next_substates)
         # warning
         actions = torch.Tensor(actions)
         subactions = torch.Tensor(subactions)
@@ -137,14 +140,17 @@ class QNet(nn.Module):
         z_space = online_net.z.repeat(batch_size, online_net.num_outputs, 1)
         prob_next_states_online = online_net(next_states)
         prob_next_states_target = target_net(next_states)
+        prob_next_substates_online = online_net(next_substates)
+        prob_next_substates_target = target_net(next_substates)
         Q_next_state = torch.sum(prob_next_states_online * z_space, 2)
+        Q_next_substate = torch.sum(prob_next_substates_online * z_space, 2)
         next_actions = torch.argmax(Q_next_state, 1)
-        next_subactions = torch.argmax(Q_next_state, 1)
+        next_subactions = torch.argmax(Q_next_substate, 1)
         prob_next_states_action = torch.stack(
             [prob_next_states_target[i, action, :] for i, action in enumerate(next_actions)])
 
         prob_next_states_subaction = torch.stack(
-            [prob_next_states_target[i, subaction, :] for i, subaction in enumerate(next_subactions)])
+            [prob_next_substates_target[i, subaction, :] for i, subaction in enumerate(next_subactions)])
 
         m_prob = cls.get_m(
             rewards, masks, prob_next_states_action, prob_next_states_subaction)
@@ -153,7 +159,7 @@ class QNet(nn.Module):
         m_prob = (m_prob / torch.sum(m_prob, dim=1, keepdim=True)).detach()
         expand_dim_action = torch.unsqueeze(actions, -1)
         expand_dim_subaction = torch.unsqueeze(subactions, -1)
-        p = torch.sum(online_net(states) * expand_dim_action.float()
+        p = torch.sum(online_net(states) * online_net(substates) * expand_dim_action.float()
                       * expand_dim_subaction.float(), dim=1)
         loss = -torch.sum(m_prob * torch.log(p + 1e-20), 1)
 
@@ -161,8 +167,8 @@ class QNet(nn.Module):
 
     @ classmethod
     def train_model(cls, online_net, target_net, optimizer, batch, weights):
-        loss = cls.get_loss(online_net, target_net, batch.state,
-                            batch.next_state, batch.action, batch.subaction, batch.reward, batch.mask)
+        loss = cls.get_loss(online_net, target_net, batch.state, batch.substate,
+                            batch.next_state, batch.next_substate, batch.action, batch.subaction, batch.reward, batch.mask)
         loss = (loss * weights.detach()).mean()
 
         optimizer.zero_grad()

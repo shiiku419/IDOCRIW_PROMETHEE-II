@@ -9,7 +9,7 @@ from utils import Memory, batch_size, device, small_epsilon, alpha, replay_memor
 from environment import Environment
 
 Transition = namedtuple(
-    'Transition', ('state', 'next_state', 'action', 'subaction', 'reward', 'mask'))
+    'Transition', ('state', 'substate', 'next_state', 'next_substate', 'action', 'subaction', 'reward', 'mask'))
 
 
 class Brain:
@@ -67,8 +67,8 @@ class Brain:
         weights = torch.Tensor(weights).to(device)
         weights = weights / weights.max()
 
-        td_error = QNet.get_loss(net, target_net, batch.state,
-                                 batch.next_state, batch.action, batch.subaction, batch.reward, batch.mask)
+        td_error = QNet.get_loss(net, target_net, batch.state, batch.substate,
+                                 batch.next_state, batch.next_substate, batch.action, batch.subaction, batch.reward, batch.mask)
         td_error = td_error.detach()
 
         td_error_idx = 0
@@ -79,14 +79,15 @@ class Brain:
 
         return batch, weights
 
-    def decide_action(self, state, epsilon):
+    def decide_action(self, state, substate, epsilon):
         if np.random.rand() <= epsilon:
             action = torch.tensor(
                 [[random.randint(0, 10)/10 for _ in range(7)]])
             subaction = torch.tensor(
                 [[random.randint(0, action[0][i]*10)/10 for i in range(7)]])
+            substate[0] = substate[0]*np.random.normal(1, 0.2, 1)
             action = action.view(7)
-            subaction = subaction.view(7)
+            subaction = substate[0].view(7)
             return action, subaction
         else:
-            return self.target_net.get_action(state)
+            return self.target_net.get_action(state, substate)

@@ -6,13 +6,13 @@ class Agents:
         self.brain = Brain(num_states, num_actions)
         self.agent_id = agent_id
 
-    def memorize(self, state, next_state, action_one_hot, subaction_one_hot, reward, mask, id):
+    def memorize(self, state, substate, next_state, next_substate, action_one_hot, subaction_one_hot, reward, mask, id):
         self.brain.memory.push(
-            state, next_state, action_one_hot, subaction_one_hot, reward, mask, id)
+            state, substate, next_state, next_substate, action_one_hot, subaction_one_hot, reward, mask, id)
 
-    def get_action(self, state, epsilon):
+    def get_action(self, state, substate, epsilon):
         action, subaction = self.brain.decide_action(
-            state, epsilon)
+            state, substate, epsilon)
         return action, subaction
 
     def update_target_model(self):

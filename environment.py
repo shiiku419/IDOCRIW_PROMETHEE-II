@@ -56,13 +56,13 @@ class Environment(gym.core.Env):
         if done:
             writer.writerow([id, '+', self.P[id]])
             writer.writerow([id, '-', self.Q[id]])
-        return observation, reward, done, info
+        return observation, self.dataset, reward, done, info
 
-    def generate(self):
+    def generate(self, subaction):
         random = np.random.randint(0, 4)
         index = np.where(self.ranking[random] ==
                          self.ranking[random].max(0)[1])[0][0]
-        self.dataset[index] = self.dataset[index]*np.random.normal(1, 0.2, 1)
+        self.dataset[index] = subaction
 
     def reset(self):
         self.time = 0

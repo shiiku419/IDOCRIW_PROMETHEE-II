@@ -90,7 +90,7 @@ class Rainbow:
                     reward = reward if not done or score == 499 else -1
 
                     action_one_hot[torch.argmax(action)] = 1
-                    subaction_one_hot[torch.argmax(action)] = 1
+                    subaction_one_hot[torch.argmax(subaction)] = 1
                     self.agents[i].memorize(state, substate, next_state, next_substate,
                                             action_one_hot, subaction_one_hot, reward, mask, i)
 

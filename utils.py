@@ -45,11 +45,12 @@ class Memory(object):
     def reset_local(self):
         self.local_step = 0
         self.local_state = None
+        self.local_substate = None
         self.local_action = None
         self.local_subaction = None
         self.local_rewards = [[] for _ in range(self.env.n_member)]
 
-    def push(self, state, substate, next_state, next_substate, action, subaction, reward, mask, id):
+    def push(self, state, next_state, substate, next_substate, action, subaction, reward, mask, id):
         self.local_step += 1
         self.local_rewards[id].append(reward)
         if self.local_step == 1:

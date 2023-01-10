@@ -126,7 +126,7 @@ class QNet(nn.Module):
         return m_prob
 
     @ classmethod
-    def get_loss(cls, online_net, target_net, states, substates, next_states, next_substates, actions, subactions,  rewards, masks):
+    def get_loss(cls, online_net, target_net, states, next_states, substates, next_substates, actions, subactions,  rewards, masks):
         states = torch.stack(states)
         next_states = torch.stack(next_states)
         substates = torch.stack(substates)

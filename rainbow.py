@@ -96,6 +96,7 @@ class Rainbow:
 
                     score += reward
                     state = next_state
+                    substate = next_substate
 
                     episode_reward[i] += reward
 

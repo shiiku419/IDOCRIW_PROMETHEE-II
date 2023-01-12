@@ -109,7 +109,7 @@ class Environment(gym.core.Env):
         main_reward = params['post_psi'] - params['pre_psi']
         sub_reward = params['post_gsi'] - params['pre_gsi']
 
-        clip += main_reward + (sub_reward / self.n_member)*random.random()
+        clip += main_reward + (sub_reward / self.n_member)
 
         self.first_ranking = self.ranking
 
@@ -120,13 +120,6 @@ class Environment(gym.core.Env):
         else:
             reward = 0
 
-        if penalty < 0:
-            reward += -1
-        elif penalty == 0:
-            reward += 0
-        else:
-            reward += 1
-
         return reward, post_psi
 
     def get_observation(self, p):
@@ -134,7 +127,7 @@ class Environment(gym.core.Env):
         return observation
 
     def check_is_done(self, post_psi):
-        if all(0.9 <= flag for flag in post_psi) == True:
+        if all(0.8 <= flag for flag in post_psi) == True:
             return True
         else:
             return self.time == self.max_step

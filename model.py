@@ -1,180 +1,154 @@
-import numpy as np
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions import Normal
 
-from utils import batch_size, num_support, gamma, V_max, V_min, sigma_zero, n_step
+LOG_SIG_MAX = 2
+LOG_SIG_MIN = -20
+epsilon = 1e-6
 
-
-class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features):
-        super(NoisyLinear, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.sigma_zero = sigma_zero
-        self.weight_mu = nn.Parameter(torch.empty(out_features, in_features))
-        self.weight_sigma = nn.Parameter(
-            torch.empty(out_features, in_features))
-        self.register_buffer(
-            'weight_epsilon', torch.empty(out_features, in_features))
-        self.bias_mu = nn.Parameter(torch.empty(out_features))
-        self.bias_sigma = nn.Parameter(torch.empty(out_features))
-        self.register_buffer('bias_epsilon', torch.empty(out_features))
-        self.reset_parameters()
-        self.reset_noise()
-
-    def reset_parameters(self):
-        mu_range = 1 / math.sqrt(self.in_features)
-        self.weight_mu.data.uniform_(-mu_range, mu_range)
-        self.weight_sigma.data.fill_(
-            self.sigma_zero / math.sqrt(self.in_features))
-        self.bias_mu.data.uniform_(-mu_range, mu_range)
-        self.bias_sigma.data.fill_(
-            self.sigma_zero / math.sqrt(self.out_features))
-
-    def _scale_noise(self, size):
-        x = torch.randn(size)
-        return x.sign().mul_(x.abs().sqrt_())
-
-    def reset_noise(self):
-        epsilon_in = self._scale_noise(self.in_features)
-        epsilon_out = self._scale_noise(self.out_features)
-        self.weight_epsilon.copy_(epsilon_out.ger(epsilon_in))
-        self.bias_epsilon.copy_(epsilon_out)
-
-    def forward(self, input):
-        return F.linear(input, self.weight_mu + self.weight_sigma * self.weight_epsilon, self.bias_mu + self.bias_sigma * self.bias_epsilon)
+# Initialize Policy weights
 
 
-class QNet(nn.Module):
-    def __init__(self, num_inputs, num_outputs):
-        super(QNet, self).__init__()
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
+def weights_init_(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+        torch.nn.init.constant_(m.bias, 0)
 
-        self.dz = float(V_max - V_min) / (num_support - 1)
-        self.z = torch.Tensor(
-            [V_min + i * self.dz for i in range(num_support)])
 
-        self.fc = nn.Linear(num_inputs, 49)
-        self.fc_adv = NoisyLinear(49, num_outputs * num_support)
-        self.fc_val = nn.Linear(49, num_support)
+class ValueNetwork(nn.Module):
+    def __init__(self, num_inputs, hidden_dim):
+        super(ValueNetwork, self).__init__()
 
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
+        self.linear1 = nn.Linear(num_inputs, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
+        self.linear3 = nn.Linear(hidden_dim, 1)
 
-    def forward(self, input):
-        x = F.relu(self.fc(input))
-        adv = self.fc_adv(x)
-        val = self.fc_val(x)
+        self.apply(weights_init_)
 
-        val = val.view(-1, 1, num_support)
-        adv = adv.view(-1, self.num_outputs, num_support)
+    def forward(self, state):
+        x = F.relu(self.linear1(state))
+        x = F.relu(self.linear2(x))
+        x = self.linear3(x)
+        return x
 
-        z = val + (adv - adv.mean(1, keepdim=True))
-        z = z.view(-1, self.num_outputs, num_support)
-        p = nn.Softmax(dim=2)(z)
-        return p
 
-    def get_Qvalue(self, input):
-        p = self.forward(input)
-        p = p.squeeze(0)
-        z_space = self.z.repeat(self.num_outputs, 1)
-        Q = torch.sum(p * z_space, dim=1)
-        return Q
+class QNetwork(nn.Module):
+    def __init__(self, num_inputs, num_actions, hidden_dim):
+        super(QNetwork, self).__init__()
 
-    def reset_noise(self):
-        self.fc_adv.reset_noise()
+        # Q1 architecture
+        self.linear1 = nn.Linear(num_inputs + num_actions, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
+        self.linear3 = nn.Linear(hidden_dim, 1)
 
-    def get_action(self, input, subinput):
-        Q = self.get_Qvalue(input)
-        subQ = self.get_Qvalue(subinput)
-        action = Q
-        subaction = subQ
-        return action, subaction
+        # Q2 architecture
+        self.linear4 = nn.Linear(num_inputs + num_actions, hidden_dim)
+        self.linear5 = nn.Linear(hidden_dim, hidden_dim)
+        self.linear6 = nn.Linear(hidden_dim, 1)
 
-    @classmethod
-    def get_m(cls, _rewards, _masks, _prob_next_states_action, _prob_next_states_subaction):
-        rewards = _rewards.numpy()
-        masks = _masks.numpy()
-        prob_next_states_action = _prob_next_states_action.detach().numpy()
-        prob_next_states_subaction = _prob_next_states_subaction.detach().numpy()
-        m_prob = np.zeros([batch_size, num_support], dtype=np.float32)
+        self.apply(weights_init_)
 
-        dz = float(V_max - V_min) / (num_support - 1)
-        batch_id = range(batch_size)
-        for j in range(num_support):
-            Tz = np.clip(rewards + masks * (gamma ** n_step)
-                         * (V_min + j * dz), V_min, V_max)
-            bj = (Tz - V_min) / dz
+    def forward(self, state, action):
+        xu = torch.cat([state, action], 1)
 
-            lj = np.floor(bj).astype(np.int64)
-            uj = np.ceil(bj).astype(np.int64)
+        x1 = F.relu(self.linear1(xu))
+        x1 = F.relu(self.linear2(x1))
+        x1 = self.linear3(x1)
 
-            blj = (bj - lj)
-            buj = (uj - bj)
+        x2 = F.relu(self.linear4(xu))
+        x2 = F.relu(self.linear5(x2))
+        x2 = self.linear6(x2)
 
-            m_prob[batch_id, lj[batch_id]] += ((1 - masks) + masks * (
-                prob_next_states_action[batch_id, j])) * (
-                prob_next_states_subaction[batch_id, j]) * buj[batch_id]
-            m_prob[batch_id, uj[batch_id]] += ((1 - masks) + masks * (
-                prob_next_states_action[batch_id, j])) * (
-                prob_next_states_subaction[batch_id, j])*blj[batch_id]
+        return x1, x2
 
-        return m_prob
 
-    @ classmethod
-    def get_loss(cls, online_net, target_net, states, next_states, substates, next_substates, actions, subactions,  rewards, masks):
-        states = torch.stack(states)
-        next_states = torch.stack(next_states)
-        substates = torch.stack(substates)
-        next_substates = torch.stack(next_substates)
-        # warning
-        actions = torch.Tensor(actions)
-        subactions = torch.Tensor(subactions)
-        rewards = torch.Tensor(rewards)
-        masks = torch.Tensor(masks)
+class GaussianPolicy(nn.Module):
+    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None):
+        super(GaussianPolicy, self).__init__()
 
-        z_space = online_net.z.repeat(batch_size, online_net.num_outputs, 1)
-        prob_next_states_online = online_net(next_states)
-        prob_next_states_target = target_net(next_states)
-        prob_next_substates_online = online_net(next_substates)
-        prob_next_substates_target = target_net(next_substates)
-        Q_next_state = torch.sum(prob_next_states_online * z_space, 2)
-        Q_next_substate = torch.sum(prob_next_substates_online * z_space, 2)
-        next_actions = torch.argmax(Q_next_state, 1)
-        next_subactions = torch.argmax(Q_next_substate, 1)
-        prob_next_states_action = torch.stack(
-            [prob_next_states_target[i, action, :] for i, action in enumerate(next_actions)])
+        self.linear1 = nn.Linear(num_inputs, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
 
-        prob_next_states_subaction = torch.stack(
-            [prob_next_substates_target[i, subaction, :] for i, subaction in enumerate(next_subactions)])
+        self.mean_linear = nn.Linear(hidden_dim, num_actions)
+        self.log_std_linear = nn.Linear(hidden_dim, num_actions)
 
-        m_prob = cls.get_m(
-            rewards, masks, prob_next_states_action, prob_next_states_subaction)
-        m_prob = torch.tensor(m_prob)
+        self.apply(weights_init_)
 
-        m_prob = (m_prob / torch.sum(m_prob, dim=1, keepdim=True)).detach()
-        expand_dim_action = torch.unsqueeze(actions, -1)
-        expand_dim_subaction = torch.unsqueeze(subactions, -1)
-        p = torch.sum(online_net(states) * online_net(substates) * expand_dim_action.float()
-                      * expand_dim_subaction.float(), dim=1)
-        loss = -torch.sum(m_prob * torch.log(p + 1e-20), 1)
+        # action rescaling
+        if action_space is None:
+            self.action_scale = torch.tensor(1.)
+            self.action_bias = torch.tensor(0.)
+        else:
+            self.action_scale = torch.FloatTensor(
+                (action_space.high - action_space.low) / 2.)
+            self.action_bias = torch.FloatTensor(
+                (action_space.high + action_space.low) / 2.)
 
-        return loss
+    def forward(self, state):
+        x = F.relu(self.linear1(state))
+        x = F.relu(self.linear2(x))
+        mean = self.mean_linear(x)
+        log_std = self.log_std_linear(x)
+        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        return mean, log_std
 
-    @ classmethod
-    def train_model(cls, online_net, target_net, optimizer, batch, weights):
-        loss = cls.get_loss(online_net, target_net, batch.state, batch.substate,
-                            batch.next_state, batch.next_substate, batch.action, batch.subaction, batch.reward, batch.mask)
-        loss = (loss * weights.detach()).mean()
+    def sample(self, state):
+        mean, log_std = self.forward(state)
+        std = log_std.exp()
+        normal = Normal(mean, std)
+        x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
+        y_t = torch.tanh(x_t)
+        action = y_t * self.action_scale + self.action_bias
+        log_prob = normal.log_prob(x_t)
+        # Enforcing Action Bound
+        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
+        log_prob = log_prob.sum(1, keepdim=True)
+        mean = torch.tanh(mean) * self.action_scale + self.action_bias
+        return action, log_prob, mean
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    def to(self, device):
+        self.action_scale = self.action_scale.to(device)
+        self.action_bias = self.action_bias.to(device)
+        return super(GaussianPolicy, self).to(device)
 
-        online_net.reset_noise()
 
-        return loss
+class DeterministicPolicy(nn.Module):
+    def __init__(self, num_inputs, num_actions, hidden_dim, action_space=None):
+        super(DeterministicPolicy, self).__init__()
+        self.linear1 = nn.Linear(num_inputs, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim)
+
+        self.mean = nn.Linear(hidden_dim, num_actions)
+        self.noise = torch.Tensor(num_actions)
+
+        self.apply(weights_init_)
+
+        # action rescaling
+        if action_space is None:
+            self.action_scale = 1.
+            self.action_bias = 0.
+        else:
+            self.action_scale = torch.FloatTensor(
+                (action_space.high - action_space.low) / 2.)
+            self.action_bias = torch.FloatTensor(
+                (action_space.high + action_space.low) / 2.)
+
+    def forward(self, state):
+        x = F.relu(self.linear1(state))
+        x = F.relu(self.linear2(x))
+        mean = torch.tanh(self.mean(x)) * self.action_scale + self.action_bias
+        return mean
+
+    def sample(self, state):
+        mean = self.forward(state)
+        noise = self.noise.normal_(0., std=0.1)
+        noise = noise.clamp(-0.25, 0.25)
+        action = mean + noise
+        return action, torch.tensor(0.), mean
+
+    def to(self, device):
+        self.action_scale = self.action_scale.to(device)
+        self.action_bias = self.action_bias.to(device)
+        self.noise = self.noise.to(device)
+        return super(DeterministicPolicy, self).to(device)

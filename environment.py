@@ -3,6 +3,11 @@ import numpy as np
 import random
 import math
 from scipy.special import softmax
+from ga import genetic_algorithm
+import csv
+
+f = open('action.csv', 'w')
+writer = csv.writer(f)
 
 
 class Environment(gym.core.Env):
@@ -10,17 +15,23 @@ class Environment(gym.core.Env):
     def __init__(self, n_member=5):
         self.dataset = np.random.rand(7, 7)
         self.n_member = n_member
-        self.n_action = n_member
-        self.action_space = gym.spaces.Discrete(self.n_action)  # actionの取りうる値
+        self.n_action = 7
+        self.action_space = gym.spaces.Discrete(self.n_action)
         self.observation_space = gym.spaces.Box(
-            low=-10, high=10, shape=(self.n_action,))  # 観測データの取りうる値
+            low=-10, high=10, shape=(self.n_action,))
 
         self.time = 0
-        self.max_step = 100*n_member
+        self.max_step = 100
         self.agent = random.sample(range(self.n_member), self.n_member)
         # TODO問題空間の変数を作って大きくしていく
 
+        self.criterion_type = self.set_criterion()
+        self.WP, self.w = self.idocriw_method(
+            self.dataset, self.criterion_type)
+
         self.W = None
+        self.P = {}
+        self.Q = {}
         self.F = {}
 
         self.first_ranking = self.get_ranking(
@@ -28,28 +39,34 @@ class Environment(gym.core.Env):
 
         self.ranking = self.first_ranking.copy()
 
+        self.pre_threshold = 0
+
         self.params = {}
 
     def step(self, action, subaction, id):
         self.time += 1
-        self.ranking = self.change_ranking(
+        self.ranking, penalty = self.change_ranking(
             action, subaction, id, self.dataset, self.criterion_type, self.ranking)
         observation = self.get_observation(self.ranking)
-        reward = self.reward_shaping(
-            self.params, self.get_reward(self.params, id))
-        done = self.check_is_done(self.params)
+        reward, post_psi = self.get_reward(penalty, self.params, id)
+        done = self.check_is_done(post_psi)
         info = {'gsi': self.params['post_gsi'],
-                'psi': self.params['post_psi']}
-        return observation, reward, done, info
+                'psi': self.params['post_psi'],
+                'gap': penalty}
+        if done:
+            writer.writerow([id, '+', self.P[id]])
+            writer.writerow([id, '-', self.Q[id]])
+        return observation, self.dataset, reward, done, info
 
-    def generate(self):
+    def generate(self, subaction):
         random = np.random.randint(0, 4)
         index = np.where(self.ranking[random] ==
                          self.ranking[random].max(0)[1])[0][0]
-        self.dataset[index] = self.dataset[index]*np.random.normal(1, 0.2, 1)
+        self.dataset[index] = subaction.tolist()
 
     def reset(self):
         self.time = 0
+        self.criterion_type = self.set_criterion()
         self.agent = random.sample(range(self.n_member), self.n_member)
         self.dataset = np.random.rand(7, 7)
         self.first_ranking = self.get_ranking(
@@ -63,55 +80,54 @@ class Environment(gym.core.Env):
     def seed(self):
         pass
 
+    def set_criterion(self):
+        type = ['max', 'min']
+        prob = [0.7, 0.3]
+        self.criterion_type = np.random.choice(a=type, size=7, p=prob)
+        return self.criterion_type
+
     def get_satisfaction(self, id):
         psi, gsi = self.calc_satisfaction(
-            self.distance, self.first_ranking, 1, self.n_member)
+            self.distance, self.first_ranking, 1, 7)
 
         post_psi, post_gsi = self.calc_satisfaction(
-            self.distance, self.ranking, 1, self.n_member)
-
-        #print(id, post_psi)
-        # print(psi)
+            self.distance, self.ranking, 1, 7)
 
         self.params['pre_psi'] = psi[id]
         self.params['post_psi'] = post_psi[id]
         self.params['pre_gsi'] = gsi
         self.params['post_gsi'] = post_gsi
 
-        return self.params
+        return self.params, post_psi
 
-    def reward_shaping(self, params, reward):
-        if params['post_psi'] - params['pre_psi'] < 0:
-            return -1
-        elif params['post_psi'] - params['pre_psi'] == 0:
-            return 0.5
-        else:
-            return reward
+    def get_reward(self, penalty, params, id):
+        params, post_psi = self.get_satisfaction(id)
 
-    def get_reward(self, params, id):
-        params = self.get_satisfaction(id)
-
-        # pre psi
-        # print(params)
         reward = 0
-        post_psi = params['post_psi']
-        post_gsi = params['post_gsi']
+        clip = 0
 
-        main_reward = post_psi
-        sub_reward = post_gsi
+        main_reward = params['post_psi'] - params['pre_psi']
+        sub_reward = params['post_gsi'] - params['pre_gsi']
 
-        reward += main_reward + (sub_reward / self.n_member)*random.random()
+        clip += main_reward + (sub_reward / self.n_member)
 
         self.first_ranking = self.ranking
 
-        return reward
+        if clip > 0:
+            reward = 1
+        elif clip < 0:
+            reward = -1
+        else:
+            reward = 0
+
+        return reward, post_psi
 
     def get_observation(self, p):
         observation = self.calc_group_rank(p)
         return observation
 
-    def check_is_done(self, params):
-        if params['post_gsi'] == self.n_member:
+    def check_is_done(self, post_psi):
+        if all(0.8 <= flag for flag in post_psi) == True:
             return True
         else:
             return self.time == self.max_step
@@ -125,11 +141,11 @@ class Environment(gym.core.Env):
             for j in range(0, X.shape[1]):
                 X_ln[i, j] = X[i, j]*math.log(X[i, j])
         d = np.zeros((1, X.shape[1]))
-        w = np.zeros((1, X.shape[1]))
+        self.w = np.zeros((1, X.shape[1]))
         for i in range(0, d.shape[1]):
             d[0, i] = 1-(-1/(math.log(d.shape[1]))*sum(X_ln[:, i]))
-        for i in range(0, w.shape[1]):
-            w[0, i] = d[0, i]/d.sum(axis=1)
+        for i in range(0, self.w.shape[1]):
+            self.w[0, i] = d[0, i]/d.sum(axis=1)
         for i in range(0, len(criterion_type)):
             if (criterion_type[i] == 'min'):
                 X_r[:, i] = dataset[:, i].min() / X_r[:, i]
@@ -146,9 +162,33 @@ class Environment(gym.core.Env):
         P = np.copy(A)
         for i in range(0, P.shape[1]):
             P[:, i] = (-P[:, i] + a_max_[i])/a_max[i]
-        WP = np.copy(P)
-        np.fill_diagonal(WP, -P.sum(axis=0))
-        return WP
+        self.WP = np.copy(P)
+        np.fill_diagonal(self.WP, -P.sum(axis=0))
+        return self.WP, self.w
+
+    def target_function(self, variable):
+        variable = [variable[i]/sum(variable) for i in range(0, len(variable))]
+        WP_s = np.copy(self.WP)
+        for i in range(0, self.WP.shape[0]):
+            for j in range(0, self.WP.shape[1]):
+                WP_s[i, j] = WP_s[i, j]*variable[j]
+        total = abs(WP_s.sum(axis=1))
+        total = sum(total)
+        return total
+
+    def solution(self):
+        solution = genetic_algorithm(population_size=5, mutation_rate=0.1, elite=1, min_values=[
+            0]*self.WP.shape[1], max_values=[1]*self.WP.shape[1], eta=1, mu=1, generations=100, target_function=self.target_function)
+        solution = solution[:-1]
+        solution = solution/sum(solution)
+        w_ = np.copy(self.w)
+        w_ = w_*solution
+        w_ = w_/w_.sum()
+        w_ = w_.T
+
+        result = [item for i in w_ for item in i]
+
+        return result
 
     def distance_matrix(self, dataset, criteria=0):
         distance_array = np.zeros(shape=(dataset.shape[0], dataset.shape[0]))
@@ -160,63 +200,60 @@ class Environment(gym.core.Env):
 
     def preference_degree(self, dataset, W, Q, S, P, F):
         pd_array = np.zeros(shape=(dataset.shape[0], dataset.shape[0]))
-        for w in range(0, dataset.shape[1]):
-            W[w] = softmax(W[w], axis=0)
-            for k in range(0, dataset.shape[1]):
-                distance_array = self.distance_matrix(dataset, criteria=k)
-                for i in range(0, distance_array.shape[0]):
-                    for j in range(0, distance_array.shape[1]):
-                        if (i != j):
-                            if (F[k] == 't1'):
-                                if (distance_array[i, j] <= 0):
-                                    distance_array[i, j] = 0
-                                else:
-                                    distance_array[i, j] = 1
-                            if (F[k] == 't2'):
-                                if (distance_array[i, j] <= Q[k]):
-                                    distance_array[i, j] = 0
-                                else:
-                                    distance_array[i, j] = 1
-                            if (F[k] == 't3'):
-                                if (distance_array[i, j] <= 0):
-                                    distance_array[i, j] = 0
-                                elif (distance_array[i, j] > 0 and distance_array[i, j] <= P[k]):
-                                    distance_array[i,
-                                                   j] = distance_array[i, j]/P[k]
-                                else:
-                                    distance_array[i, j] = 1
-                            if (F[k] == 't4'):
-                                if (distance_array[i, j] <= Q[k]):
-                                    distance_array[i, j] = 0
-                                elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
-                                    distance_array[i, j] = 0.5
-                                else:
-                                    distance_array[i, j] = 1
-                            if (F[k] == 't5'):
-                                if (distance_array[i, j] <= Q[k]):
-                                    distance_array[i, j] = 0
-                                elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
-                                    distance_array[i, j] = (
-                                        distance_array[i, j] - Q[k])/(P[k] - Q[k])
-                                else:
-                                    distance_array[i, j] = 1
-                            if (F[k] == 't6'):
-                                if (distance_array[i, j] <= 0):
-                                    distance_array[i, j] = 0
-                                else:
-                                    distance_array[i, j] = 1 - \
-                                        math.exp(-(distance_array[i, j]
-                                                   ** 2)/(2*S[k]**2))
-                            if (F[k] == 't7'):
-                                if (distance_array[i, j] == 0):
-                                    distance_array[i, j] = 0
-                                elif (distance_array[i, j] > 0 and distance_array[i, j] <= S[k]):
-                                    distance_array[i, j] = (
-                                        distance_array[i, j]/S[k])**0.5
-                                elif (distance_array[i, j] > S[k]):
-                                    distance_array[i, j] = 1
-                pd_array = pd_array + softmax(W[w], axis=0)[k]*distance_array
-            pd_array = pd_array/sum(W[w])
+        for k in range(0, dataset.shape[1]):
+            distance_array = self.distance_matrix(dataset, criteria=k)
+            for i in range(0, distance_array.shape[0]):
+                for j in range(0, distance_array.shape[1]):
+                    if (i != j):
+                        if (F[k] == 't1'):
+                            if (distance_array[i, j] <= 0):
+                                distance_array[i, j] = 0
+                            else:
+                                distance_array[i, j] = 1
+                        if (F[k] == 't2'):
+                            if (distance_array[i, j] <= Q[k]):
+                                distance_array[i, j] = 0
+                            else:
+                                distance_array[i, j] = 1
+                        if (F[k] == 't3'):
+                            if (distance_array[i, j] <= 0):
+                                distance_array[i, j] = 0
+                            elif (distance_array[i, j] > 0 and distance_array[i, j] <= P[k]):
+                                distance_array[i,
+                                               j] = distance_array[i, j]/P[k]
+                            else:
+                                distance_array[i, j] = 1
+                        if (F[k] == 't4'):
+                            if (distance_array[i, j] <= Q[k]):
+                                distance_array[i, j] = 0
+                            elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
+                                distance_array[i, j] = 0.5
+                            else:
+                                distance_array[i, j] = 1
+                        if (F[k] == 't5'):
+                            if (distance_array[i, j] <= Q[k]):
+                                distance_array[i, j] = 0
+                            elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
+                                distance_array[i, j] = (
+                                    distance_array[i, j] - Q[k])/(P[k] - Q[k])
+                            else:
+                                distance_array[i, j] = 1
+                        if (F[k] == 't6'):
+                            if (distance_array[i, j] <= 0):
+                                distance_array[i, j] = 0
+                            else:
+                                distance_array[i, j] = 1 - \
+                                    math.exp(-(distance_array[i, j]
+                                               ** 2)/(2*S[k]**2))
+                        if (F[k] == 't7'):
+                            if (distance_array[i, j] == 0):
+                                distance_array[i, j] = 0
+                            elif (distance_array[i, j] > 0 and distance_array[i, j] <= S[k]):
+                                distance_array[i, j] = (
+                                    distance_array[i, j]/S[k])**0.5
+                            elif (distance_array[i, j] > S[k]):
+                                distance_array[i, j] = 1
+            pd_array = pd_array + softmax(W, axis=0)[k]*distance_array
         return pd_array
 
     def promethee_ii(self, dataset, W, Q, S, P, F, sort=True, topn=0, graph=False):
@@ -241,7 +278,7 @@ class Environment(gym.core.Env):
         result = 0
         satisfaction = 0
         group_satisfaction = 0
-        satisfaction_index = [0 for _ in range(5)]
+        satisfaction_index = [0 for _ in range(self.n_member)]
         g_ranks = self.calc_group_rank(p)
         for k in range(0, len(p)):
             i = self.agent[k]
@@ -265,34 +302,35 @@ class Environment(gym.core.Env):
         group_rank = group_rank[np.argsort(group_rank[:, 1])]
         return group_rank
 
-    # Criterion Type: 'max' or 'min'
-    criterion_type = ['max', 'max', 'max', 'max', 'max', 'min', 'min']
-
-    # Parameters
-
     def get_ranking(self, F, dataset, criterion_type):
-        self.W = self.idocriw_method(dataset, criterion_type)
+        noise = [np.random.random(7) for _ in range(self.n_member)]
+        self.W = [self.solution()*noise[i] for i in range(5)]
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
         p = {}
 
         for k in range(self.n_member):
             i = self.agent[k]
-            P = [random.random() for _ in range(7)]
-            Q = [random.uniform(0, P[j])for j in range(7)]
-            S = [(P[j]-Q[j]) for j in range(7)]
+
+            self.P[i] = [random.random() for _ in range(7)]
+            self.Q[i] = [random.uniform(0, self.P[i][j])for j in range(7)]
+            S = [(self.P[i][j]+self.Q[i][j]/2) for j in range(7)]
+
             F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
 
-            p[i] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=F[i],
+            self.pre_threshold = sum(S)
+
+            p[i] = self.promethee_ii(dataset, W=self.W[i], Q=self.Q[i], S=S, P=self.P[i], F=F[i],
                                      sort=False, topn=10, graph=False)
         return p
 
     def change_ranking(self, action, subaction, id, dataset, criterion_type, ranking):
 
-        P = action.view(7)/10
-        Q = subaction.view(7)/10
-        S = [(P[j]-Q[j]) for j in range(7)]
+        self.P[id] = [x+y for (x, y) in zip(self.P[id], action.tolist())]
+        S = [(self.P[id][j]+self.Q[id][j])/2 for j in range(7)]
 
-        ranking[id] = self.promethee_ii(dataset, W=self.W, Q=Q, S=S, P=P, F=self.F[id],
+        penalty = sum(S) - self.pre_threshold
+
+        ranking[id] = self.promethee_ii(dataset, W=self.W[id], Q=self.Q[id], S=S, P=self.P[id], F=self.F[id],
                                         sort=False, topn=10, graph=False)
-        return ranking
+        return ranking, penalty

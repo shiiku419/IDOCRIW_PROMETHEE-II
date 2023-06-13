@@ -5,6 +5,20 @@ import math
 import numpy as np
 from scipy.special import softmax
 from collections import deque
+from pyDecision.util.ga import genetic_algorithm
+
+# Criterion Type: 'max' or 'min'
+criterion_type = ['max', 'max', 'max', 'min', 'min', 'min', 'min']
+# Dataset
+dataset = np.array([
+    [75.5, 420,	 200,    2.8,	21.4,	0.37,	 0.16],  # a1
+    [95,   900,	 170,	 2.68,  22.1,	0.33,	 0.16],  # a2
+    [770,  1365, 189,	 7.9,	16.9,	0.04,	 0.08],  # a3
+    [187,  1120, 210,	 7.9,	14.4,	0.03,	 0.08],  # a4
+    [179,  875,	 112,	 4.43,	9.4,	0.41,    0.09],  # a5
+    [239,  1190, 217,	 8.51,	11.5,	0.31,	 0.07],  # a6
+    [273,  1200, 112,	 8.53,	19.9,	0.29,	 0.06],  # a7
+])
 
 
 def idocriw_method(dataset, criterion_type):
@@ -41,7 +55,37 @@ def idocriw_method(dataset, criterion_type):
         P[:, i] = (-P[:, i] + a_max_[i])/a_max[i]
     WP = np.copy(P)
     np.fill_diagonal(WP, -P.sum(axis=0))
-    return WP
+    return WP, w
+
+
+WP, w = idocriw_method(dataset, criterion_type)
+
+
+def target_function(variable):
+    variable = [variable[i]/sum(variable) for i in range(0, len(variable))]
+    WP_s = np.copy(WP)
+    for i in range(0, WP.shape[0]):
+        for j in range(0, WP.shape[1]):
+            WP_s[i, j] = WP_s[i, j]*variable[j]
+    total = abs(WP_s.sum(axis=1))
+    total = sum(total)
+    return total
+
+
+def solution():
+    solution = genetic_algorithm(population_size=5, mutation_rate=0.1, elite=1, min_values=[
+                                 0]*WP.shape[1], max_values=[1]*WP.shape[1], eta=1, mu=1, generations=100, target_function=target_function)
+    solution = solution[:-1]
+    solution = solution/sum(solution)
+    w_ = np.copy(w)
+    w_ = w_*solution
+    w_ = w_/w_.sum()
+    w_ = w_.T
+
+    result = [item for i in w_ for item in i]
+    print(result)
+
+    return result
 
 
 def distance_matrix(dataset, criteria=0):
@@ -54,63 +98,60 @@ def distance_matrix(dataset, criteria=0):
 
 def preference_degree(dataset, W, Q, S, P, F):
     pd_array = np.zeros(shape=(dataset.shape[0], dataset.shape[0]))
-    for w in range(0, dataset.shape[1]):
-        W[w] = softmax(W[w], axis=0)
-        for k in range(0, dataset.shape[1]):
-            distance_array = distance_matrix(dataset, criteria=k)
-            for i in range(0, distance_array.shape[0]):
-                for j in range(0, distance_array.shape[1]):
-                    if (i != j):
-                        if (F[k] == 't1'):
-                            if (distance_array[i, j] <= 0):
-                                distance_array[i, j] = 0
-                            else:
-                                distance_array[i, j] = 1
-                        if (F[k] == 't2'):
-                            if (distance_array[i, j] <= Q[k]):
-                                distance_array[i, j] = 0
-                            else:
-                                distance_array[i, j] = 1
-                        if (F[k] == 't3'):
-                            if (distance_array[i, j] <= 0):
-                                distance_array[i, j] = 0
-                            elif (distance_array[i, j] > 0 and distance_array[i, j] <= P[k]):
-                                distance_array[i,
-                                               j] = distance_array[i, j]/P[k]
-                            else:
-                                distance_array[i, j] = 1
-                        if (F[k] == 't4'):
-                            if (distance_array[i, j] <= Q[k]):
-                                distance_array[i, j] = 0
-                            elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
-                                distance_array[i, j] = 0.5
-                            else:
-                                distance_array[i, j] = 1
-                        if (F[k] == 't5'):
-                            if (distance_array[i, j] <= Q[k]):
-                                distance_array[i, j] = 0
-                            elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
-                                distance_array[i, j] = (
-                                    distance_array[i, j] - Q[k])/(P[k] - Q[k])
-                            else:
-                                distance_array[i, j] = 1
-                        if (F[k] == 't6'):
-                            if (distance_array[i, j] <= 0):
-                                distance_array[i, j] = 0
-                            else:
-                                distance_array[i, j] = 1 - \
-                                    math.exp(-(distance_array[i, j]
-                                             ** 2)/(2*S[k]**2))
-                        if (F[k] == 't7'):
-                            if (distance_array[i, j] == 0):
-                                distance_array[i, j] = 0
-                            elif (distance_array[i, j] > 0 and distance_array[i, j] <= S[k]):
-                                distance_array[i, j] = (
-                                    distance_array[i, j]/S[k])**0.5
-                            elif (distance_array[i, j] > S[k]):
-                                distance_array[i, j] = 1
-            pd_array = pd_array + softmax(W[w], axis=0)[k]*distance_array
-        pd_array = pd_array/sum(W[w])
+    for k in range(0, dataset.shape[1]):
+        distance_array = distance_matrix(dataset, criteria=k)
+        for i in range(0, distance_array.shape[0]):
+            for j in range(0, distance_array.shape[1]):
+                if (i != j):
+                    if (F[k] == 't1'):
+                        if (distance_array[i, j] <= 0):
+                            distance_array[i, j] = 0
+                        else:
+                            distance_array[i, j] = 1
+                    if (F[k] == 't2'):
+                        if (distance_array[i, j] <= Q[k]):
+                            distance_array[i, j] = 0
+                        else:
+                            distance_array[i, j] = 1
+                    if (F[k] == 't3'):
+                        if (distance_array[i, j] <= 0):
+                            distance_array[i, j] = 0
+                        elif (distance_array[i, j] > 0 and distance_array[i, j] <= P[k]):
+                            distance_array[i,
+                                           j] = distance_array[i, j]/P[k]
+                        else:
+                            distance_array[i, j] = 1
+                    if (F[k] == 't4'):
+                        if (distance_array[i, j] <= Q[k]):
+                            distance_array[i, j] = 0
+                        elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
+                            distance_array[i, j] = 0.5
+                        else:
+                            distance_array[i, j] = 1
+                    if (F[k] == 't5'):
+                        if (distance_array[i, j] <= Q[k]):
+                            distance_array[i, j] = 0
+                        elif (distance_array[i, j] > Q[k] and distance_array[i, j] <= P[k]):
+                            distance_array[i, j] = (
+                                distance_array[i, j] - Q[k])/(P[k] - Q[k])
+                        else:
+                            distance_array[i, j] = 1
+                    if (F[k] == 't6'):
+                        if (distance_array[i, j] <= 0):
+                            distance_array[i, j] = 0
+                        else:
+                            distance_array[i, j] = 1 - \
+                                math.exp(-(distance_array[i, j]
+                                         ** 2)/(2*S[k]**2))
+                    if (F[k] == 't7'):
+                        if (distance_array[i, j] == 0):
+                            distance_array[i, j] = 0
+                        elif (distance_array[i, j] > 0 and distance_array[i, j] <= S[k]):
+                            distance_array[i, j] = (
+                                distance_array[i, j]/S[k])**0.5
+                        elif (distance_array[i, j] > S[k]):
+                            distance_array[i, j] = 1
+        pd_array = pd_array + softmax(W, axis=0)[k]*distance_array
     return pd_array
 
 
@@ -153,6 +194,7 @@ def calc_satisfaction(func, p, frm, to, agent):
         bottom = to**3 - to
         satisfaction = 1 - 6 * result / bottom
         satisfaction_index[i] = satisfaction
+    print(satisfaction_index)
     return satisfaction_index
 
 
@@ -165,20 +207,8 @@ def calc_group_rank(p):
     return group_rank
 
 
-# Criterion Type: 'max' or 'min'
-criterion_type = ['max', 'max', 'max', 'min', 'min', 'min', 'min']
-# Dataset
-dataset = np.array([
-    [75.5, 420,	 200,    2.8,	21.4,	0.37,	 0.16],  # a1
-    [95,   900,	 170,	 2.68,  22.1,	0.33,	 0.16],  # a2
-    [770,  1365, 189,	 7.9,	16.9,	0.04,	 0.08],  # a3
-    [187,  1120, 210,	 7.9,	14.4,	0.03,	 0.08],  # a4
-    [179,  875,	 112,	 4.43,	9.4,	0.41,    0.09],  # a5
-    [239,  1190, 217,	 8.51,	11.5,	0.31,	 0.07],  # a6
-    [273,  1200, 112,	 8.53,	19.9,	0.29,	 0.06],  # a7
-])
 # Parameters
-W = idocriw_method(dataset, criterion_type)
+W = solution()
 pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 p = {}
 agent = random.sample(range(5), 5)
@@ -191,4 +221,3 @@ for k in range(5):
     p[i] = promethee_ii(dataset, W=W, Q=Q, S=S, P=P, F=F,
                         sort=False, topn=10, graph=False)
 index = calc_satisfaction(distance, p, 1, 7, agent)
-print(index)

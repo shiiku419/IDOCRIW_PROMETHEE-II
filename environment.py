@@ -4,10 +4,6 @@ import random
 import math
 from scipy.special import softmax
 from ga import genetic_algorithm
-import csv
-
-f = open('action.csv', 'w')
-writer = csv.writer(f)
 
 
 class Environment(gym.core.Env):
@@ -16,14 +12,17 @@ class Environment(gym.core.Env):
         self.dataset = np.random.rand(7, 7)
         self.n_member = n_member
         self.n_action = 7
-        self.action_space = gym.spaces.Discrete(self.n_action)
+        self.action_space = gym.spaces.Dict({
+            'thresholds': gym.spaces.Box(low=0, high=10, shape=(7,), dtype=np.int32),
+            'matrix': gym.spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32)
+        })
+
         self.observation_space = gym.spaces.Box(
-            low=-10, high=10, shape=(self.n_action,))
+            low=0, high=10, shape=(self.n_member, 7))
 
         self.time = 0
         self.max_step = 100
         self.agent = random.sample(range(self.n_member), self.n_member)
-        # TODO問題空間の変数を作って大きくしていく
 
         self.criterion_type = self.set_criterion()
         self.WP, self.w = self.idocriw_method(
@@ -43,20 +42,28 @@ class Environment(gym.core.Env):
 
         self.params = {}
 
-    def step(self, action, subaction, id):
+    def step(self, actions, subactions):
         self.time += 1
-        self.ranking, penalty = self.change_ranking(
-            action, subaction, id, self.dataset, self.criterion_type, self.ranking)
-        observation = self.get_observation(self.ranking)
-        reward, post_psi = self.get_reward(penalty, self.params, id)
-        done = self.check_is_done(post_psi)
-        info = {'gsi': self.params['post_gsi'],
-                'psi': self.params['post_psi'],
-                'gap': penalty}
-        if done:
-            writer.writerow([id, '+', self.P[id]])
-            writer.writerow([id, '-', self.Q[id]])
-        return observation, self.dataset, reward, done, info
+
+        rewards = {}
+        observations = {}
+        post_psis = {}
+        done = False
+        for agent_id in self.agent:
+            action = actions[agent_id]
+            subaction = subactions[agent_id]
+            self.ranking, penalty = self.change_ranking(
+                action, subaction, self.dataset, self.criterion_type, self.ranking)
+            observation = self.get_observation(self.ranking)
+            reward, post_psi = self.get_reward(penalty, agent_id)
+            observations[agent_id] = observation
+            rewards[agent_id] = reward
+            post_psis[agent_id] = post_psi
+
+        done = self.check_is_done(list(post_psis.values()))
+        info = {}
+
+        return observations, rewards, done, info
 
     def generate(self, subaction):
         random = np.random.randint(0, 4)
@@ -93,14 +100,16 @@ class Environment(gym.core.Env):
         post_psi, post_gsi = self.calc_satisfaction(
             self.distance, self.ranking, 1, 7)
 
-        self.params['pre_psi'] = psi[id]
-        self.params['post_psi'] = post_psi[id]
-        self.params['pre_gsi'] = gsi
-        self.params['post_gsi'] = post_gsi
+        params = {
+            'pre_psi': psi[id],
+            'post_psi': post_psi[id],
+            'pre_gsi': gsi,
+            'post_gsi': post_gsi
+        }
 
-        return self.params, post_psi
+        return params, post_psi
 
-    def get_reward(self, penalty, params, id):
+    def get_reward(self, penalty, id):
         params, post_psi = self.get_satisfaction(id)
 
         reward = 0

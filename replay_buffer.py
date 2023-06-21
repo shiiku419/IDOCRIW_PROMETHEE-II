@@ -15,13 +15,13 @@ class ReplayBuffer:
         # create a buffer (dictionary)
 
     def reset_buffer(self):
-        self.buffer = {'obs_n': np.empty([self.batch_size, self.episode_limit, self.N, self.obs_dim]),
-                       's': np.empty([self.batch_size, self.episode_limit, self.state_dim]),
-                       'v_n': np.empty([self.batch_size, self.episode_limit + 1, self.N]),
-                       'a_n': np.empty([self.batch_size, self.episode_limit], dtype=object),
-                       'a_logprob_n': np.empty([self.batch_size, self.episode_limit, self.N]),
-                       'r_n': np.empty([self.batch_size, self.episode_limit], dtype=object),
-                       'done_n': np.empty([self.batch_size, self.episode_limit], dtype=object)
+        self.buffer = {'obs_n': np.zeros([self.batch_size, self.episode_limit, self.N, self.obs_dim]),
+                       's': np.zeros([self.batch_size, self.episode_limit, self.state_dim]),
+                       'v_n': np.zeros([self.batch_size, self.episode_limit + 1, self.N]),
+                       'a_n': np.zeros([self.batch_size, self.episode_limit], dtype=object),
+                       'a_logprob_n': np.zeros([self.batch_size, self.episode_limit], dtype=object),
+                       'r_n': np.zeros([self.batch_size, self.episode_limit, self.N]),
+                       'done_n': np.zeros([self.batch_size, self.episode_limit, self.N])
                        }
         self.episode_num = 0
 
@@ -33,7 +33,10 @@ class ReplayBuffer:
             'thresholds': a_n['thresholds'],
             'matrix': a_n['matrix']
         }
-        self.buffer['a_logprob_n'][self.episode_num][episode_step] = a_logprob_n
+        self.buffer['a_logprob_n'][self.episode_num][episode_step] = {
+            'thresholds': a_logprob_n['thresholds'],
+            'matrix': a_logprob_n['matrix']
+        }
         self.buffer['r_n'][self.episode_num][episode_step] = r_n
         self.buffer['done_n'][self.episode_num][episode_step] = done_n
 
@@ -44,11 +47,19 @@ class ReplayBuffer:
     def get_training_data(self):
         batch = {}
         for key in self.buffer.keys():
-            if key == 'a_n':
-                # batch[key] = torch.tensor(self.buffer[key], dtype=torch.long)
-                batch[key] = np.array([self.buffer[key][i]
-                                      for i in range(self.batch_size)], dtype=object)
+            if key == 'a_n' or key == 'a_logprob_n':
+                # Assuming that self.buffer[key] is an array of dictionaries
+                array_data = self.buffer[key]
+                if len(array_data) > 0 and isinstance(array_data[0], dict):
+                    batch[key] = [
+                        {sub_key: torch.tensor(val, dtype=torch.float64)
+                         for sub_key, val in item.items()}
+                        for item in array_data
+                    ]
+                else:
+                    # Handle other data formats
+                    pass
             else:
-                batch[key] = np.array([self.buffer[key][i]
-                                       for i in range(self.batch_size)], dtype=object)
+                data = np.array(self.buffer[key], dtype=np.float64)
+                batch[key] = torch.from_numpy(data)
         return batch

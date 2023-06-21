@@ -28,7 +28,6 @@ class Runner_MAPPO_MPE:
         # Only for homogenous agents environments like Spread in MPE,all agents have the same dimension of observation space and action space
         # The dimensions of an agent's observation space
         self.args.obs_dim = self.args.obs_dim_n[0]
-        print(self.args.obs_dim, 'first')
         # The dimensions of an agent's action space
         self.args.action_dim = self.args.action_dim_n[0]
         # The dimensions of global state space（Sum of the dimensions of the local observation space of all agents）
@@ -115,33 +114,17 @@ class Runner_MAPPO_MPE:
 
             if not evaluate:
                 if self.args.use_reward_norm:
-                    # Assuming r_n is a dictionary, we need to normalize each value in the dictionary
-                    normalized_r_n = {}
-                    for key, value in r_n.items():
-                        # Assuming the normalization works on arrays
-                        normalized_value = self.reward_norm(np.array([value]))
-                        # Extract the single value from the array
-                        normalized_r_n[key] = normalized_value[0]
-                    r_n = normalized_r_n
-
+                    r_n = self.reward_norm(r_n)
                 elif args.use_reward_scaling:
-                    # Assuming r_n is a dictionary, we need to normalize each value in the dictionary
-                    normalized_r_n = {}
-                    for key, value in r_n.items():
-                        # Assuming the normalization works on arrays
-                        normalized_value = self.reward_scaling(
-                            np.array([value]))
-                        # Extract the single value from the array
-                        normalized_r_n[key] = normalized_value[0]
-                    r_n = normalized_r_n
+                    r_n = self.reward_scaling(r_n)
 
-                # Store the transition
+                # Store the transitionpython3 src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="lbforaging:Foraging-8x8-2p-3f-v1" 
                 self.replay_buffer.store_transition(
                     episode_step, obs_n, s, v_n, a_n, a_logprob_n, r_n, done_n)
 
             obs_n = obs_next_n
 
-            if (done_n):
+            if done_n:
                 break
 
         if not evaluate:

@@ -13,8 +13,8 @@ class Environment(gym.core.Env):
         self.n_member = n_member
         self.n_action = 5
         self.action_space = gym.spaces.Dict({
-            'thresholds': gym.spaces.Box(low=0, high=10, shape=(5,), dtype=np.float32),
-            'matrix': gym.spaces.Box(low=0, high=1, shape=(5, 5), dtype=np.float32)
+            'thresholds': gym.spaces.Box(low=0, high=10, shape=(5,), dtype=np.float64),
+            'matrix': gym.spaces.Box(low=0, high=1, shape=(5, 5), dtype=np.float64)
         })
 
         self.observation_space = gym.spaces.Box(
@@ -46,7 +46,7 @@ class Environment(gym.core.Env):
         self.time += 1
 
         action = {}
-        rewards = {}
+        rewards = []
         observations = {}
         post_psis = {}
         done = False
@@ -58,7 +58,7 @@ class Environment(gym.core.Env):
             observation = self.get_observation(self.ranking)
             # 観測追加はここ
             reward, post_psi = self.get_reward(penalty, agent_id)
-            rewards[agent_id] = reward
+            rewards.append(reward)
             post_psis = post_psi
 
         done = self.check_is_done(post_psis)

@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn.functional as F
+import numpy as np
 from torch.optim import Adam
 from utils import soft_update, hard_update
 from model import GaussianPolicy, QNetwork, DeterministicPolicy
@@ -19,13 +20,18 @@ class SAC(object):
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
-        self.critic = QNetwork(
-            num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
-        self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
+        matrix_dim = action_space["matrix"].shape
+        thresholds_dim = action_space["thresholds"].shape[0]
+        # 各行動空間の次元を結合した形にするか、別々に扱うかは実装次第です。
+        # この例では簡略化のため合計次元数を用います。
 
-        self.critic_target = QNetwork(
-            num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
-        hard_update(self.critic_target, self.critic)
+        b_action_dim = int(np.prod(matrix_dim)) + thresholds_dim
+
+        action_dim = torch.tensor(b_action_dim)
+
+        self.critic = QNetwork(
+            num_inputs, action_dim, args.hidden_size).to(device=self.device)
+        self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
@@ -38,7 +44,7 @@ class SAC(object):
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
             self.policy = GaussianPolicy(
-                num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+                num_inputs, action_dim, args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:

@@ -7,6 +7,7 @@ import torch
 from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
+from environment import Environment
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
 parser.add_argument('--env-name', default="HalfCheetah-v2",
@@ -48,8 +49,8 @@ args = parser.parse_args()
 
 # Environment
 # env = NormalizedActions(gym.make(args.env_name))
-env = gym.make(args.env_name)
-env.seed(args.seed)
+env = Environment()
+env.seed()
 env.action_space.seed(args.seed)
 
 torch.manual_seed(args.seed)

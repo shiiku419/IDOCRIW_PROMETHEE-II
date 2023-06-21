@@ -4,26 +4,25 @@ import random
 import math
 from scipy.special import softmax
 from ga import genetic_algorithm
-import csv
-
-f = open('action.csv', 'w')
-writer = csv.writer(f)
 
 
 class Environment(gym.core.Env):
 
     def __init__(self, n_member=5):
-        self.dataset = np.random.rand(7, 7)
+        self.dataset = np.random.rand(5, 5)
         self.n_member = n_member
-        self.n_action = 7
-        self.action_space = gym.spaces.Discrete(self.n_action)
+        self.n_action = 5
+        self.action_space = gym.spaces.Dict({
+            'thresholds': gym.spaces.Box(low=0, high=10, shape=(5,), dtype=np.float64),
+            'matrix': gym.spaces.Box(low=0, high=1, shape=(5, 5), dtype=np.float64)
+        })
+
         self.observation_space = gym.spaces.Box(
-            low=-10, high=10, shape=(self.n_action,))
+            low=0, high=10, shape=(self.n_member, 2))
 
         self.time = 0
         self.max_step = 100
         self.agent = random.sample(range(self.n_member), self.n_member)
-        # TODO問題空間の変数を作って大きくしていく
 
         self.criterion_type = self.set_criterion()
         self.WP, self.w = self.idocriw_method(
@@ -43,20 +42,29 @@ class Environment(gym.core.Env):
 
         self.params = {}
 
-    def step(self, action, subaction, id):
+    def step(self, actions):
         self.time += 1
-        self.ranking, penalty = self.change_ranking(
-            action, subaction, id, self.dataset, self.criterion_type, self.ranking)
-        observation = self.get_observation(self.ranking)
-        reward, post_psi = self.get_reward(penalty, self.params, id)
-        done = self.check_is_done(post_psi)
-        info = {'gsi': self.params['post_gsi'],
-                'psi': self.params['post_psi'],
-                'gap': penalty}
-        if done:
-            writer.writerow([id, '+', self.P[id]])
-            writer.writerow([id, '-', self.Q[id]])
-        return observation, self.dataset, reward, done, info
+
+        action = {}
+        rewards = []
+        observations = {}
+        post_psis = {}
+        done = False
+        for agent_id in self.agent:
+            action = actions['thresholds'][agent_id]
+            subaction = actions['matrix'][agent_id]
+            self.ranking, penalty = self.change_ranking(
+                action, subaction, agent_id, self.dataset, self.ranking)
+            observation = self.get_observation(self.ranking)
+            # 観測追加はここ
+            reward, post_psi = self.get_reward(penalty, agent_id)
+            rewards.append(reward)
+            post_psis = post_psi
+
+        done = self.check_is_done(post_psis)
+        info = {}
+
+        return observation, rewards, done, info
 
     def generate(self, subaction):
         random = np.random.randint(0, 4)
@@ -68,7 +76,7 @@ class Environment(gym.core.Env):
         self.time = 0
         self.criterion_type = self.set_criterion()
         self.agent = random.sample(range(self.n_member), self.n_member)
-        self.dataset = np.random.rand(7, 7)
+        self.dataset = np.random.rand(5, 5)
         self.first_ranking = self.get_ranking(
             self.F, self.dataset, self.criterion_type)
         observation = self.get_observation(self.first_ranking)
@@ -83,24 +91,26 @@ class Environment(gym.core.Env):
     def set_criterion(self):
         type = ['max', 'min']
         prob = [0.7, 0.3]
-        self.criterion_type = np.random.choice(a=type, size=7, p=prob)
+        self.criterion_type = np.random.choice(a=type, size=5, p=prob)
         return self.criterion_type
 
     def get_satisfaction(self, id):
         psi, gsi = self.calc_satisfaction(
-            self.distance, self.first_ranking, 1, 7)
+            self.distance, self.first_ranking, 1, 5)
 
         post_psi, post_gsi = self.calc_satisfaction(
-            self.distance, self.ranking, 1, 7)
+            self.distance, self.ranking, 1, 5)
 
-        self.params['pre_psi'] = psi[id]
-        self.params['post_psi'] = post_psi[id]
-        self.params['pre_gsi'] = gsi
-        self.params['post_gsi'] = post_gsi
+        params = {
+            'pre_psi': psi[id],
+            'post_psi': post_psi[id],
+            'pre_gsi': gsi,
+            'post_gsi': post_gsi
+        }
 
-        return self.params, post_psi
+        return params, post_psi
 
-    def get_reward(self, penalty, params, id):
+    def get_reward(self, penalty, id):
         params, post_psi = self.get_satisfaction(id)
 
         reward = 0
@@ -303,7 +313,7 @@ class Environment(gym.core.Env):
         return group_rank
 
     def get_ranking(self, F, dataset, criterion_type):
-        noise = [np.random.random(7) for _ in range(self.n_member)]
+        noise = [np.random.random(5) for _ in range(self.n_member)]
         self.W = [self.solution()*noise[i] for i in range(5)]
         pref = ['t1', 't2', 't3', 't4', 't5', 't6']
 
@@ -312,11 +322,11 @@ class Environment(gym.core.Env):
         for k in range(self.n_member):
             i = self.agent[k]
 
-            self.P[i] = [random.random() for _ in range(7)]
-            self.Q[i] = [random.uniform(0, self.P[i][j])for j in range(7)]
-            S = [(self.P[i][j]+self.Q[i][j]/2) for j in range(7)]
+            self.P[i] = [random.random() for _ in range(5)]
+            self.Q[i] = [random.uniform(0, self.P[i][j])for j in range(5)]
+            S = [(self.P[i][j]+self.Q[i][j]/2) for j in range(5)]
 
-            F[i] = [pref[random.randint(0, 5)] for _ in range(7)]
+            F[i] = [pref[random.randint(0, 5)] for _ in range(5)]
 
             self.pre_threshold = sum(S)
 
@@ -324,10 +334,10 @@ class Environment(gym.core.Env):
                                      sort=False, topn=10, graph=False)
         return p
 
-    def change_ranking(self, action, subaction, id, dataset, criterion_type, ranking):
+    def change_ranking(self, action, subaction, id, dataset, ranking):
 
         self.P[id] = [x+y for (x, y) in zip(self.P[id], action.tolist())]
-        S = [(self.P[id][j]+self.Q[id][j])/2 for j in range(7)]
+        S = [(self.P[id][j]+self.Q[id][j])/2 for j in range(5)]
 
         penalty = sum(S) - self.pre_threshold
 

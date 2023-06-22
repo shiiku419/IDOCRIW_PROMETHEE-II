@@ -18,8 +18,8 @@ class ReplayBuffer:
         self.buffer = {'obs_n': np.zeros([self.batch_size, self.episode_limit, self.N, self.obs_dim]),
                        's': np.zeros([self.batch_size, self.episode_limit, self.state_dim]),
                        'v_n': np.zeros([self.batch_size, self.episode_limit + 1, self.N]),
-                       'a_n': np.zeros([self.batch_size, self.episode_limit], dtype=object),
-                       'a_logprob_n': np.zeros([self.batch_size, self.episode_limit], dtype=object),
+                       'a_n': [[{} for _ in range(self.episode_limit)] for _ in range(self.batch_size)],
+                       'a_logprob_n': [[{} for _ in range(self.episode_limit)] for _ in range(self.batch_size)],
                        'r_n': np.zeros([self.batch_size, self.episode_limit, self.N]),
                        'done_n': np.zeros([self.batch_size, self.episode_limit, self.N])
                        }
@@ -47,18 +47,30 @@ class ReplayBuffer:
     def get_training_data(self):
         batch = {}
         for key in self.buffer.keys():
-            if key == 'a_n' or key == 'a_logprob_n':
-                # Assuming that self.buffer[key] is an array of dictionaries
-                array_data = self.buffer[key]
-                if len(array_data) > 0 and isinstance(array_data[0], dict):
-                    batch[key] = [
-                        {sub_key: torch.tensor(val, dtype=torch.float64)
-                         for sub_key, val in item.items()}
-                        for item in array_data
-                    ]
-                else:
-                    # Handle other data formats
-                    pass
+            if key == 'a_n':
+                t_data_list = [torch.from_numpy(self.buffer[key][i][j]['thresholds'])
+                               for i in range(self.batch_size) for j in range(self.episode_limit) if self.buffer[key][i][j]]
+                m_data_list = [torch.from_numpy(self.buffer[key][i][j]['matrix'])
+                               for i in range(self.batch_size) for j in range(self.episode_limit) if self.buffer[key][i][j]]
+
+                t_data_stacked = torch.stack(t_data_list, dim=0)
+                m_data_stacked = torch.stack(m_data_list, dim=0)
+
+                batch[key] = {}
+                batch[key]['thresholds'] = t_data_stacked
+                batch[key]['matrix'] = m_data_stacked
+            elif key == 'a_logprob_n':
+                t_data_list = [torch.tensor(self.buffer[key][i][j]['thresholds'])
+                               for i in range(self.batch_size) for j in range(self.episode_limit) if self.buffer[key][i][j]]
+                m_data_list = [torch.tensor(self.buffer[key][i][j]['matrix'])
+                               for i in range(self.batch_size) for j in range(self.episode_limit) if self.buffer[key][i][j]]
+
+                t_data_stacked = torch.stack(t_data_list, dim=0)
+                m_data_stacked = torch.stack(m_data_list, dim=0)
+
+                batch[key] = {}
+                batch[key]['thresholds'] = t_data_stacked
+                batch[key]['matrix'] = m_data_stacked
             else:
                 data = np.array(self.buffer[key], dtype=np.float64)
                 batch[key] = torch.from_numpy(data)

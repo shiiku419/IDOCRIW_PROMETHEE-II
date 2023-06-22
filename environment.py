@@ -14,7 +14,7 @@ class Environment(gym.core.Env):
         self.n_action = 5
         self.action_space = gym.spaces.Dict({
             'thresholds': gym.spaces.Box(low=0, high=10, shape=(5,), dtype=np.float64),
-            'matrix': gym.spaces.Box(low=0, high=1, shape=(5, 5), dtype=np.float64)
+            'matrix': gym.spaces.Box(low=0, high=1, shape=(5,), dtype=np.float64)
         })
 
         self.observation_space = gym.spaces.Box(

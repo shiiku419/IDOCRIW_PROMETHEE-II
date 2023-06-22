@@ -27,7 +27,7 @@ class Actor_RNN(nn.Module):
         # output shape for thresholds is (5,)
         self.fc2_thresholds = nn.Linear(args.rnn_hidden_dim, 5)
         # output shape for matrix is (5, 5)
-        self.fc2_matrix = nn.Linear(args.rnn_hidden_dim, 25)
+        self.fc2_matrix = nn.Linear(args.rnn_hidden_dim, 5)
 
         self.activate_func = [nn.Tanh(), nn.ReLU()][args.use_relu]
 
@@ -39,14 +39,15 @@ class Actor_RNN(nn.Module):
             orthogonal_init(self.fc2_matrix, gain=0.01)
 
     def forward(self, actor_input):
+        actor_input = actor_input.float()
         x = self.activate_func(self.fc1(actor_input))
         self.rnn_hidden = self.rnn(x, self.rnn_hidden)
 
         # Calculate outputs for thresholds and matrix
         output_thresholds = torch.clamp(
             self.fc2_thresholds(self.rnn_hidden), min=0, max=10)
-        output_matrix = torch.clamp(self.fc2_matrix(
-            self.rnn_hidden).view(-1, 5, 5), min=0, max=1)
+        output_matrix = torch.clamp(
+            self.fc2_matrix(self.rnn_hidden), min=0, max=1)
 
         # Returning action as dictionary
         action = {'thresholds': output_thresholds, 'matrix': output_matrix}
@@ -72,6 +73,7 @@ class Critic_RNN(nn.Module):
     def forward(self, critic_input):
         # When 'get_value': critic_input.shape=(N, critic_input_dim), value.shape=(N, 1)
         # When 'train':     critic_input.shape=(mini_batch_size*N, critic_input_dim), value.shape=(mini_batch_size*N, 1)
+        critic_input = critic_input.float()
         x = self.activate_func(self.fc1(critic_input))
         self.rnn_hidden = self.rnn(x, self.rnn_hidden)
         value = self.fc2(self.rnn_hidden)
@@ -202,25 +204,23 @@ class MAPPO_MPE:
 
             # Assuming your actor network now outputs means for both 'thresholds' and 'matrix'
             # E.g., mean_outputs = self.actor(actor_inputs), where mean_outputs is a dictionary like {'thresholds': ..., 'matrix': ...}
-            # this should return the dictionary {'thresholds': ..., 'matrix': ...}
             mean_outputs = self.actor(actor_inputs)
 
-            # Define distributions for each part of the action space
+            # Define standard deviations (could also be learned)
+            std_devs = {
+                'thresholds': torch.full(mean_outputs['thresholds'].shape, 0.5),
+                'matrix': torch.full(mean_outputs['matrix'].shape, 0.1)
+            }
+
+            # Sample from the normal distributions
             distributions = {
-                'thresholds': torch.distributions.Normal(mean_outputs['thresholds'], 64),
-                'matrix': torch.distributions.Normal(mean_outputs['matrix'], 64)
+                'thresholds': torch.distributions.Normal(mean_outputs['thresholds'], std_devs['thresholds']),
+                'matrix': torch.distributions.Normal(mean_outputs['matrix'], std_devs['matrix'])
             }
 
-            # Sample from the distributions
             action = {
-                'thresholds': distributions['thresholds'].sample(),
-                'matrix': distributions['matrix'].sample()
-            }
-
-            # Compute the log probabilities of the sampled actions
-            a_logprob_n = {
-                'thresholds': distributions['thresholds'].log_prob(action['thresholds']),
-                'matrix': distributions['matrix'].log_prob(action['matrix'])
+                'thresholds': distributions['thresholds'].sample().clamp(0, 10).numpy(),
+                'matrix': distributions['matrix'].sample().clamp(0, 1).numpy()
             }
 
             if evaluate:
@@ -228,8 +228,8 @@ class MAPPO_MPE:
             else:
                 # Compute the log probabilities of the sampled actions
                 a_logprob_n = {
-                    'thresholds': distributions['thresholds'].log_prob(action['thresholds'].clone().detach()),
-                    'matrix': distributions['matrix'].log_prob(action['matrix'].clone().detach())
+                    'thresholds': distributions['thresholds'].log_prob(torch.tensor(action['thresholds'])),
+                    'matrix': distributions['matrix'].log_prob(torch.tensor(action['matrix']))
                 }
                 return action, a_logprob_n
 
@@ -249,6 +249,7 @@ class MAPPO_MPE:
 
     def train(self, replay_buffer, total_steps):
         batch = replay_buffer.get_training_data()  # get training data
+        print(batch['a_n'])
 
         # Calculate the advantage using GAE
         adv = []
@@ -267,52 +268,70 @@ class MAPPO_MPE:
             if self.use_adv_norm:  # Trick 1: advantage normalization
                 adv = ((adv - adv.mean()) / (adv.std() + 1e-5))
 
+        """
+            Get actor_inputs and critic_inputs
+            actor_inputs.shape=(
+                batch_size, max_episode_len, N, actor_input_dim)
+            critic_inputs.shape=(
+                batch_size, max_episode_len, N, critic_input_dim)
+        """
         actor_inputs, critic_inputs = self.get_inputs(batch)
 
         # Optimize policy for K epochs:
         for _ in range(self.K_epochs):
             for index in BatchSampler(SequentialSampler(range(self.batch_size)), self.mini_batch_size, False):
+                """
+                    get probs_now and values_now
+                    probs_now.shape=(
+                        mini_batch_size, episode_limit, N, action_dim)
+                    values_now.shape=(mini_batch_size, episode_limit, N)
+                """
+                if self.use_rnn:
+                    # If use RNN, we need to reset the rnn_hidden of the actor and critic.
+                    self.actor.rnn_hidden = None
+                    self.critic.rnn_hidden = None
+                    probs_now, t_probs_now, m_probs_now, values_now, t_values_now, m_values_now = [
+                    ], [], [], [], [], []
+                    for t in range(self.episode_limit):
+                        # prob.shape=(mini_batch_size*N, action_dim)
+                        prob = self.actor(actor_inputs[index, t].reshape(
+                            self.mini_batch_size * self.N, -1))
+                        # prob.shape=(mini_batch_size,N,action_dim）
+                        t_probs_now.append(prob['thresholds'].reshape(
+                            self.mini_batch_size, self.N, -1))
+                        m_probs_now.append(prob['matrix'].reshape(
+                            self.mini_batch_size, self.N, -1))
 
-                # Assuming that actor network outputs means and std devs for the normal distribution
-                output = self.actor(actor_inputs[index])
-                means_now = output['thresholds']
-                std_devs_now = output['matrix']
+                        v = self.critic(critic_inputs[index, t].reshape(
+                            self.mini_batch_size * self.N, -1))  # v.shape=(mini_batch_size*N,1)
+                        # v.shape=(mini_batch_size,N)
+                        values_now.append(
+                            v.reshape(self.mini_batch_size, self.N))
+                    # Stack them according to the time (dim=1)
+                    t_probs_now = torch.stack(t_probs_now, dim=1)
+                    m_probs_now = torch.stack(m_probs_now, dim=1)
+                    probs_now = t_probs_now + m_probs_now / 2.
+                    values_now = torch.stack(values_now, dim=1)
+                else:
+                    probs_now = self.actor(actor_inputs[index])
+                    values_now = self.critic(critic_inputs[index]).squeeze(-1)
 
-                dist_thresholds = torch.distributions.Normal(
-                    means_now['thresholds'], std_devs_now['thresholds'])
-                dist_matrix = torch.distributions.Normal(
-                    means_now['matrix'], std_devs_now['matrix'])
-
-                # Use dist_thresholds and dist_matrix for action-related computations.
-                action_thresholds_logprobs = dist_thresholds.log_prob(
-                    batch['a_n'][index]['thresholds'])
-                action_matrix_logprobs = dist_matrix.log_prob(
-                    batch['a_n'][index]['matrix'])
-
-                # Assuming that you want to combine these logprobs in some way,
-                # for example, by summing them for simplicity.
-                # Note: The way you combine them depends on your specific use case.
-                combined_action_logprobs = action_thresholds_logprobs + action_matrix_logprobs
-
-                # The rest of the code should then use combined_action_logprobs in place
-                # of the old a_logprob_n_now for further computations.
-                ratios = torch.exp(combined_action_logprobs -
+                dist_now = Categorical(probs_now)
+                # dist_entropy.shape=(mini_batch_size, episode_limit, N)
+                dist_entropy = dist_now.entropy()
+                # batch['a_n'][index].shape=(mini_batch_size, episode_limit, N)
+                # a_logprob_n_now.shape=(mini_batch_size, episode_limit, N)
+                a_logprob_n_now = dist_now.log_prob(batch['a_n'][index])
+                # a/b=exp(log(a)-log(b))
+                # ratios.shape=(mini_batch_size, episode_limit, N)
+                ratios = torch.exp(a_logprob_n_now -
                                    batch['a_logprob_n'][index].detach())
-                # ... continue with the rest of the computations as before, but using the updated ratios ...
-
-                # Compute surrogate loss
                 surr1 = ratios * adv[index]
                 surr2 = torch.clamp(ratios, 1 - self.epsilon,
                                     1 + self.epsilon) * adv[index]
+                actor_loss = -torch.min(surr1, surr2) - \
+                    self.entropy_coef * dist_entropy
 
-                # Compute actor loss considering also the entropy for exploration
-                actor_loss = -torch.min(surr1, surr2) + \
-                    self.entropy_coef * dist_now.entropy().mean()
-
-                # Assuming that critic network outputs values for the critic
-                values_now = self.critic(critic_inputs[index]).squeeze(-1)
-
-                # Compute critic loss
                 if self.use_value_clip:
                     values_old = batch["v_n"][index, :-1].detach()
                     values_error_clip = torch.clamp(
@@ -323,11 +342,10 @@ class MAPPO_MPE:
                 else:
                     critic_loss = (values_now - v_target[index]) ** 2
 
-                # Perform optimization step
                 self.ac_optimizer.zero_grad()
                 ac_loss = actor_loss.mean() + critic_loss.mean()
                 ac_loss.backward()
-                if self.use_grad_clip:
+                if self.use_grad_clip:  # Trick 7: Gradient clip
                     torch.nn.utils.clip_grad_norm_(self.ac_parameters, 10.0)
                 self.ac_optimizer.step()
 

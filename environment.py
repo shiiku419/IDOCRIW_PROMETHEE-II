@@ -13,13 +13,18 @@ class Environment(gym.core.Env):
         self.n_member = n_member
         self.n_action = 5
         self.action_space = gym.spaces.Dict({
-            'thresholds': gym.spaces.Box(low=0, high=10, shape=(5,), dtype=np.float64),
-            'matrix': gym.spaces.Box(low=0, high=1, shape=(5,), dtype=np.float64)
+            i: gym.spaces.Dict({
+                'thresholds': gym.spaces.Box(low=0, high=10, shape=(5, ), dtype=float),
+                'matrix': gym.spaces.Box(low=0, high=1, shape=(5, ), dtype=float)
+            }) for i in range(self.n_member)
         })
 
-        self.observation_space = gym.spaces.Box(
-            low=0, high=10, shape=(self.n_member, 2))
-
+        self.observation_space = gym.spaces.Dict({
+            i: gym.spaces.Dict({
+                'individual': gym.spaces.Box(low=0, high=10, shape=(5, 2), dtype=float),
+                'group': gym.spaces.Box(low=0, high=10, shape=(5, 2), dtype=float)
+            }) for i in range(self.n_member)
+        })
         self.time = 0
         self.max_step = 100
         self.agent = random.sample(range(self.n_member), self.n_member)
@@ -51,8 +56,8 @@ class Environment(gym.core.Env):
         post_psis = {}
         done = False
         for agent_id in self.agent:
-            action = actions['thresholds'][agent_id]
-            subaction = actions['matrix'][agent_id]
+            action = actions[agent_id]['thresholds']
+            subaction = actions[agent_id]['matrix']
             self.ranking, penalty = self.change_ranking(
                 action, subaction, agent_id, self.dataset, self.ranking)
             observation = self.get_observation(self.ranking)
@@ -290,6 +295,7 @@ class Environment(gym.core.Env):
         group_satisfaction = 0
         satisfaction_index = [0 for _ in range(self.n_member)]
         g_ranks = self.calc_group_rank(p)
+        g_ranks = g_ranks[0]['group']
         for k in range(0, len(p)):
             i = self.agent[k]
             i_ranks = p[i][np.argsort(p[1][:, 1])]
@@ -310,7 +316,9 @@ class Environment(gym.core.Env):
             group_rank += p[i]
         group_rank = group_rank/len(p)
         group_rank = group_rank[np.argsort(group_rank[:, 1])]
-        return group_rank
+        observation = [{'individual': self.first_ranking[i], 'group':group_rank}
+                       for i in range(self.n_member)]
+        return observation
 
     def get_ranking(self, F, dataset, criterion_type):
         noise = [np.random.random(5) for _ in range(self.n_member)]

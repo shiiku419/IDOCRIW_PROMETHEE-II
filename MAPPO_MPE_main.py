@@ -20,18 +20,19 @@ class Runner_MAPPO_MPE:
         # Create env
         self.env = Environment()  # Discrete action space
         self.args.N = 5  # The number of agents
-        self.args.obs_dim_n = [self.env.observation_space.shape[1]
-                               for _ in range(self.args.N)]  # obs dimensions of N agents
-        self.args.action_dim_n = [{'thresholds': self.env.action_space['thresholds'].shape[0],
-                                   'matrix': self.env.action_space['matrix'].shape[0]}
-                                  for _ in range(self.args.N)]  # actions dimensions of N agents
+        self.args.obs_dim_n = [{'individual': self.env.observation_space[i]['individual'].shape[0],
+                                'group': self.env.observation_space[i]['group'].shape[0]}
+                               for i in range(self.args.N)]  # obs dimensions of N agents
+        self.args.action_dim_n = [{'thresholds': self.env.action_space[i]['thresholds'].shape[0],
+                                   'matrix': self.env.action_space[i]['matrix'].shape[0]}
+                                  for i in range(self.args.N)]  # actions dimensions of N agents
         # Only for homogenous agents environments like Spread in MPE,all agents have the same dimension of observation space and action space
         # The dimensions of an agent's observation space
-        self.args.obs_dim = self.args.obs_dim_n[0]
+        self.args.obs_dim = 10  # self.args.obs_dim_n[0]
         # The dimensions of an agent's action space
-        self.args.action_dim = self.args.action_dim_n[0]
+        self.args.action_dim = 10  # self.args.action_dim_n[0]
         # The dimensions of global state space（Sum of the dimensions of the local observation space of all agents）
-        self.args.state_dim = np.sum(self.args.obs_dim_n)
+        self.args.state_dim = 50  # np.sum(self.args.obs_dim_n[0])
         print("observation_space=", self.env.observation_space)
         print("obs_dim_n={}".format(self.args.obs_dim_n))
         print("action_space=", self.env.action_space)
@@ -106,6 +107,9 @@ class Runner_MAPPO_MPE:
             a_n, a_logprob_n = self.agent_n.choose_action(
                 obs_n, evaluate=evaluate)
             # In MPE, global state is the concatenation of all agents' local obs.
+            obs_n = [item['individual'] for item in obs_n]
+            obs_n = np.array(obs_n, dtype=np.float32)
+            obs_n = torch.tensor(obs_n, dtype=torch.float32).reshape(5, 10)
             s = np.array(obs_n).flatten()
             # Get the state values (V(s)) of N agents
             v_n = self.agent_n.get_value(s)
@@ -118,7 +122,7 @@ class Runner_MAPPO_MPE:
                 elif args.use_reward_scaling:
                     r_n = self.reward_scaling(r_n)
 
-                # Store the transitionpython3 src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="lbforaging:Foraging-8x8-2p-3f-v1" 
+                # Store the transitionpython3 src/main.py --config=qmix --env-config=gymma with env_args.time_limit=25 env_args.key="lbforaging:Foraging-8x8-2p-3f-v1"
                 self.replay_buffer.store_transition(
                     episode_step, obs_n, s, v_n, a_n, a_logprob_n, r_n, done_n)
 
@@ -129,6 +133,8 @@ class Runner_MAPPO_MPE:
 
         if not evaluate:
             # An episode is over, store v_n in the last step
+            # obs_n = obs_n
+            obs_n = [item['individual'] for item in obs_n]
             s = np.array(obs_n).flatten()
             v_n = self.agent_n.get_value(s)
             self.replay_buffer.store_last_value(episode_step + 1, v_n)

@@ -10,9 +10,9 @@ import numpy as np
 # Trick 8: orthogonal initialization
 def orthogonal_init(layer, gain=1.0):
     for name, param in layer.named_parameters():
-        if 'bias' in name:
+        if "bias" in name:
             nn.init.constant_(param, 0)
-        elif 'weight' in name:
+        elif "weight" in name:
             nn.init.orthogonal_(param, gain=gain)
 
 
@@ -38,10 +38,10 @@ class Actor_RNN(nn.Module):
             orthogonal_init(self.fc1)
             orthogonal_init(self.rnn)
             # orthogonal_init(self.fc2, gain=0.01)
-            orthogonal_init(self.fc_mean_thresholds)
-            orthogonal_init(self.fc_log_std_thresholds)
-            orthogonal_init(self.fc_mean_matrix)
-            orthogonal_init(self.fc_log_std_matrix)
+            orthogonal_init(self.fc_mean_thresholds, gain=0.01)
+            orthogonal_init(self.fc_log_std_thresholds, gain=0.01)
+            orthogonal_init(self.fc_mean_matrix, gain=0.01)
+            orthogonal_init(self.fc_log_std_matrix, gain=0.01)
 
     def forward(self, actor_input):
         # When 'choose_action': actor_input.shape=(N, actor_input_dim), prob.shape=(N, action_dim)
@@ -85,7 +85,7 @@ class Critic_RNN(nn.Module):
         return value
 
 
-'''
+"""
 class Actor_MLP(nn.Module):
     def __init__(self, args, actor_input_dim):
         super(Actor_MLP, self).__init__()
@@ -143,7 +143,7 @@ class Critic_MLP(nn.Module):
         x = self.activate_func(self.fc2(x))
         value = self.fc3(x)
         return value
-'''
+"""
 
 
 class MAPPO_MPE:
@@ -185,34 +185,37 @@ class MAPPO_MPE:
             self.actor = Actor_RNN(args, self.actor_input_dim)
             self.critic = Critic_RNN(args, self.critic_input_dim)
         # else:
-            # self.actor = Actor_MLP(args, self.actor_input_dim)
-            # self.critic = Critic_MLP(args, self.critic_input_dim)
+        # self.actor = Actor_MLP(args, self.actor_input_dim)
+        # self.critic = Critic_MLP(args, self.critic_input_dim)
 
-        self.ac_parameters = list(
-            self.actor.parameters()) + list(self.critic.parameters())
+        self.ac_parameters = list(self.actor.parameters()) + list(
+            self.critic.parameters()
+        )
         if self.set_adam_eps:
             print("------set adam eps------")
             self.ac_optimizer = torch.optim.Adam(
-                self.ac_parameters, lr=self.lr, eps=1e-5)
+                self.ac_parameters, lr=self.lr, eps=1e-5
+            )
         else:
-            self.ac_optimizer = torch.optim.Adam(
-                self.ac_parameters, lr=self.lr)
+            self.ac_optimizer = torch.optim.Adam(self.ac_parameters, lr=self.lr)
 
     def choose_action(self, obs_n, evaluate):
         with torch.no_grad():
             actor_inputs = []
-            obs_n = [item['individual'] for item in obs_n]
-            obs_n = np.array(obs_n, dtype=np.float32)
-            obs_n = torch.tensor(obs_n, dtype=torch.float32).reshape(5, 10)
             actor_inputs.append(obs_n)
             if self.add_agent_id:
                 actor_inputs.append(torch.eye(self.N))
 
             actor_inputs = torch.cat([x for x in actor_inputs], dim=-1)
+            actor_inputs = actor_inputs.reshape(10, 10)
 
             # Get means and log_stds from the actor network
-            mean_thresholds, log_std_thresholds, mean_matrix, log_std_matrix = self.actor(
-                actor_inputs)
+            (
+                mean_thresholds,
+                log_std_thresholds,
+                mean_matrix,
+                log_std_matrix,
+            ) = self.actor(actor_inputs)
             std_thresholds = log_std_thresholds.exp()
             std_matrix = log_std_matrix.exp()
 
@@ -236,17 +239,23 @@ class MAPPO_MPE:
 
                 # Get the log probabilities of the sampled actions
                 log_prob_thresholds = normal_thresholds.log_prob(
-                    torch.tensor(sampled_thresholds)).numpy()
+                    torch.tensor(sampled_thresholds)
+                ).numpy()
                 log_prob_matrix = normal_matrix.log_prob(
-                    torch.tensor(sampled_matrix)).numpy()
-                log_prob = {'thresholds': log_prob_thresholds,
-                            'matrix': log_prob_matrix}
+                    torch.tensor(sampled_matrix)
+                ).numpy()
+                log_prob = {
+                    "thresholds": log_prob_thresholds,
+                    "matrix": log_prob_matrix,
+                }
 
             # Combine the components into the final action
             actions = []
             for i in range(self.N):
                 action = {
-                    'thresholds': clipped_thresholds[i], 'matrix': clipped_matrix[i]}
+                    "thresholds": clipped_thresholds[i],
+                    "matrix": clipped_matrix[i],
+                }
                 actions.append(action)
 
             return actions, log_prob
@@ -255,15 +264,16 @@ class MAPPO_MPE:
         with torch.no_grad():
             critic_inputs = []
             # Because each agent has the same global state, we need to repeat the global state 'N' times.
-            s = torch.tensor(s, dtype=torch.float32).unsqueeze(
-                0).repeat(self.N, 1)  # (state_dim,)-->(N,state_dim)
+            s = (
+                torch.tensor(s, dtype=torch.float32).unsqueeze(0).repeat(self.N, 1)
+            )  # (state_dim,)-->(N,state_dim)
             critic_inputs.append(s)
             if self.add_agent_id:  # Add an one-hot vector to represent the agent_id
                 critic_inputs.append(torch.eye(self.N))
             # critic_input.shape=(N, critic_input_dim)
             critic_inputs = torch.cat([x for x in critic_inputs], dim=-1)
             v_n = self.critic(critic_inputs)  # v_n.shape(N,1)
-            return v_n.numpy().flatten()[:self.N]
+            return v_n.numpy().flatten()[: self.N]
 
     def train(self, replay_buffer, total_steps):
         batch = replay_buffer.get_training_data()  # get training data
@@ -271,89 +281,140 @@ class MAPPO_MPE:
         # Calculate the advantage using GAE
         adv = []
         gae = 0
-        with torch.no_grad():  # adv and td_target have no gradient
-            # deltas.shape=(batch_size,episode_limit,N)
-            deltas = batch['r_n'] + self.gamma * batch['v_n'][:,
-                                                              1:] * (1 - batch['done_n']) - batch['v_n'][:, :-1]
+        with torch.no_grad():
+            deltas = (
+                batch["r_n"]
+                + self.gamma * batch["v_n"][:, 1:] * (1 - batch["done_n"])
+                - batch["v_n"][:, :-1]
+            )
             for t in reversed(range(self.episode_limit)):
                 gae = deltas[:, t] + self.gamma * self.lamda * gae
                 adv.insert(0, gae)
-            # adv.shape(batch_size,episode_limit,N)
             adv = torch.stack(adv, dim=1)
-            # v_target.shape(batch_size,episode_limit,N)
-            v_target = adv + batch['v_n'][:, :-1]
-            if self.use_adv_norm:  # Trick 1: advantage normalization
-                adv = ((adv - adv.mean()) / (adv.std() + 1e-5))
+            v_target = adv + batch["v_n"][:, :-1]
+            if self.use_adv_norm:
+                adv = (adv - adv.mean()) / (adv.std() + 1e-5)
 
-        """
-            Get actor_inputs and critic_inputs
-            actor_inputs.shape=(batch_size, max_episode_len, N, actor_input_dim)
-            critic_inputs.shape=(batch_size, max_episode_len, N, critic_input_dim)
-        """
         actor_inputs, critic_inputs = self.get_inputs(batch)
 
-        # Optimize policy for K epochs:
         for _ in range(self.K_epochs):
-            for index in BatchSampler(SequentialSampler(range(self.batch_size)), self.mini_batch_size, False):
-                """
-                    get probs_now and values_now
-                    probs_now.shape=(mini_batch_size, episode_limit, N, action_dim)
-                    values_now.shape=(mini_batch_size, episode_limit, N)
-                """
+            for index in BatchSampler(
+                SequentialSampler(range(self.batch_size)), self.mini_batch_size, False
+            ):
                 if self.use_rnn:
-                    # If use RNN, we need to reset the rnn_hidden of the actor and critic.
                     self.actor.rnn_hidden = None
                     self.critic.rnn_hidden = None
                     probs_now, values_now = [], []
                     for t in range(self.episode_limit):
-                        # prob.shape=(mini_batch_size*N, action_dim)
-                        prob = self.actor(actor_inputs[index, t].reshape(
-                            self.mini_batch_size * self.N, -1).float())
-                        # prob.shape=(mini_batch_size,N,action_dim）
-                        probs_now.append(prob.reshape(
-                            self.mini_batch_size, self.N, -1))
-                        v = self.critic(critic_inputs[index, t].reshape(
-                            self.mini_batch_size * self.N, -1))  # v.shape=(mini_batch_size*N,1)
-                        # v.shape=(mini_batch_size,N)
-                        values_now.append(
-                            v.reshape(self.mini_batch_size, self.N))
-                    # Stack them according to the time (dim=1)
-                    probs_now = torch.stack(probs_now, dim=1)
+                        (
+                            mean_thresholds,
+                            log_std_thresholds,
+                            mean_matrix,
+                            log_std_matrix,
+                        ) = self.actor(
+                            actor_inputs[index, t]
+                            .reshape(self.mini_batch_size * self.N, -1)
+                            .float()
+                        )
+                        v = self.critic(
+                            critic_inputs[index, t].reshape(
+                                self.mini_batch_size * self.N, -1
+                            )
+                        )
+                        values_now.append(v.reshape(self.mini_batch_size, self.N))
+
+                        # Take a subset of mean_thresholds and log_std_thresholds for current mini-batch
+                        mini_batch_mean_thresholds = mean_thresholds.view(-1, 5)[index]
+                        mini_batch_log_std_thresholds = log_std_thresholds.view(-1, 5)[
+                            index
+                        ]
+
+                        # Calculate standard deviation
+                        std = torch.exp(mini_batch_log_std_thresholds)
+
+                        # Create distribution for the current mini-batch
+                        dist_now = torch.distributions.Normal(
+                            mini_batch_mean_thresholds, std
+                        )
+                        # Corrected log probability calculation
+                        actions = batch["a_n"]["thresholds"].view(-1, 5)[index]
+                        log_prob = dist_now.log_prob(actions)
+                        probs_now.append(
+                            log_prob.reshape(self.mini_batch_size, self.N, -1)
+                        )
+
+                    probs_now = torch.cat(probs_now, dim=1)
                     values_now = torch.stack(values_now, dim=1)
                 else:
-                    probs_now = self.actor(actor_inputs[index])
+                    (
+                        mean_thresholds,
+                        log_std_thresholds,
+                        mean_matrix,
+                        log_std_matrix,
+                    ) = self.actor(actor_inputs[index])
                     values_now = self.critic(critic_inputs[index]).squeeze(-1)
 
-                dist_now = Categorical(probs_now)
-                # dist_entropy.shape=(mini_batch_size, episode_limit, N)
-                dist_entropy = dist_now.entropy()
-                # batch['a_n'][index].shape=(mini_batch_size, episode_limit, N)
-                # a_logprob_n_now.shape=(mini_batch_size, episode_limit, N)
-                a_logprob_n_now = dist_now.log_prob(batch['a_n'][index])
-                # a/b=exp(log(a)-log(b))
-                # ratios.shape=(mini_batch_size, episode_limit, N)
-                ratios = torch.exp(a_logprob_n_now -
-                                   batch['a_logprob_n'][index].detach())
-                surr1 = ratios * adv[index]
-                surr2 = torch.clamp(ratios, 1 - self.epsilon,
-                                    1 + self.epsilon) * adv[index]
-                actor_loss = -torch.min(surr1, surr2) - \
-                    self.entropy_coef * dist_entropy
+                    # Take a subset of mean_thresholds and log_std_thresholds for current mini-batch
+                    mini_batch_mean_thresholds = mean_thresholds.view(-1, 5)[index]
+                    mini_batch_log_std_thresholds = log_std_thresholds.view(-1, 5)[
+                        index
+                    ]
+
+                    # Calculate standard deviation
+                    std = torch.exp(mini_batch_log_std_thresholds)
+
+                    # Create distribution for the current mini-batch
+                    dist_now = torch.distributions.Normal(
+                        mini_batch_mean_thresholds, std
+                    )
+
+                    std = torch.exp(log_std_thresholds)
+                    dist_now = torch.distributions.Normal(mean_thresholds, std)
+                    probs_now = dist_now.log_prob(batch["a_n"]["thresholds"][index])
+
+                # Corrected entropy calculation
+                dist_entropy = 0.5 + 0.5 * torch.log(2 * torch.tensor(np.pi) * std**2)
+                a_logprob_n_now = probs_now
+                batch_slice = (
+                    batch["a_logprob_n"]["thresholds"][index].detach().unsqueeze(1)
+                )
+                ratios = torch.exp(a_logprob_n_now - batch_slice)
+                ratios_chunked = ratios.view(8, 5, 25, 5)
+                surr1 = ratios_chunked * adv[index].unsqueeze(1)
+
+                # surr1 = ratios * adv[index]
+                surr2 = torch.clamp(
+                    ratios_chunked, 1 - self.epsilon, 1 + self.epsilon
+                ) * adv[index].unsqueeze(1)
+                # actor_loss = -torch.min(surr1, surr2) - self.entropy_coef * dist_entropy
+
+                dist_entropy_expanded = (
+                    dist_entropy.unsqueeze(2).unsqueeze(3).expand_as(surr1)
+                )
+                actor_loss = (
+                    -torch.min(surr1, surr2) - self.entropy_coef * dist_entropy_expanded
+                )
 
                 if self.use_value_clip:
                     values_old = batch["v_n"][index, :-1].detach()
-                    values_error_clip = torch.clamp(
-                        values_now - values_old, -self.epsilon, self.epsilon) + values_old - v_target[index]
+                    values_error_clip = (
+                        torch.clamp(
+                            values_now - values_old, -self.epsilon, self.epsilon
+                        )
+                        + values_old
+                        - v_target[index]
+                    )
                     values_error_original = values_now - v_target[index]
                     critic_loss = torch.max(
-                        values_error_clip ** 2, values_error_original ** 2)
+                        values_error_clip**2, values_error_original**2
+                    )
                 else:
                     critic_loss = (values_now - v_target[index]) ** 2
 
                 self.ac_optimizer.zero_grad()
                 ac_loss = actor_loss.mean() + critic_loss.mean()
                 ac_loss.backward()
-                if self.use_grad_clip:  # Trick 7: Gradient clip
+                if self.use_grad_clip:
                     torch.nn.utils.clip_grad_norm_(self.ac_parameters, 10.0)
                 self.ac_optimizer.step()
 
@@ -363,17 +424,22 @@ class MAPPO_MPE:
     def lr_decay(self, total_steps):  # Trick 6: learning rate Decay
         lr_now = self.lr * (1 - total_steps / self.max_train_steps)
         for p in self.ac_optimizer.param_groups:
-            p['lr'] = lr_now
+            p["lr"] = lr_now
 
     def get_inputs(self, batch):
         actor_inputs, critic_inputs = [], []
-        actor_inputs.append(batch['obs_n']['individual'])
+        actor_inputs.append(batch["obs_n"]["individual"])
         critic_inputs.append(
-            batch['s']['individual'].unsqueeze(2).repeat(1, 1, self.N, 1))
+            batch["s"]["individual"].unsqueeze(2).repeat(1, 1, self.N, 1)
+        )
         if self.add_agent_id:
             # agent_id_one_hot.shape=(mini_batch_size, max_episode_len, N, N)
-            agent_id_one_hot = torch.eye(self.N).unsqueeze(0).unsqueeze(
-                0).repeat(self.batch_size, self.episode_limit, 1, 1)
+            agent_id_one_hot = (
+                torch.eye(self.N)
+                .unsqueeze(0)
+                .unsqueeze(0)
+                .repeat(self.batch_size, self.episode_limit, 1, 1)
+            )
             actor_inputs.append(agent_id_one_hot)
             critic_inputs.append(agent_id_one_hot)
 
@@ -381,12 +447,23 @@ class MAPPO_MPE:
         actor_inputs = torch.cat([x for x in actor_inputs], dim=-1)
         # critic_inputs.shape=(batch_size, episode_limit, N, critic_input_dim)
         critic_inputs = torch.cat([x for x in critic_inputs], dim=-1)
+        actor_inputs = actor_inputs.reshape(32, 25, 5, 10)
+        critic_inputs = critic_inputs.reshape(32, 25, 5, 100)
         return actor_inputs, critic_inputs
 
     def save_model(self, env_name, number, seed, total_steps):
-        torch.save(self.actor.state_dict(), "model/MAPPO_actor_env_{}_number_{}_seed_{}_step_{}k.pth".format(
-            env_name, number, seed, int(total_steps / 1000)))
+        torch.save(
+            self.actor.state_dict(),
+            "model/MAPPO_actor_env_{}_number_{}_seed_{}_step_{}k.pth".format(
+                env_name, number, seed, int(total_steps / 1000)
+            ),
+        )
 
     def load_model(self, env_name, number, seed, step):
-        self.actor.load_state_dict(torch.load(
-            "model/MAPPO_actor_env_{}_number_{}_seed_{}_step_{}k.pth".format(env_name, number, seed, step)))
+        self.actor.load_state_dict(
+            torch.load(
+                "model/MAPPO_actor_env_{}_number_{}_seed_{}_step_{}k.pth".format(
+                    env_name, number, seed, step
+                )
+            )
+        )

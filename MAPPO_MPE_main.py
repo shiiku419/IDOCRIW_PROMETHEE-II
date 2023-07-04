@@ -32,7 +32,7 @@ class Runner_MAPPO_MPE:
         # The dimensions of an agent's action space
         self.args.action_dim = 10  # self.args.action_dim_n[0]
         # The dimensions of global state space（Sum of the dimensions of the local observation space of all agents）
-        self.args.state_dim = 50  # np.sum(self.args.obs_dim_n[0])
+        self.args.state_dim = 100  # np.sum(self.args.obs_dim_n[0])
         print("observation_space=", self.env.observation_space)
         print("obs_dim_n={}".format(self.args.obs_dim_n))
         print("action_space=", self.env.action_space)
@@ -103,15 +103,16 @@ class Runner_MAPPO_MPE:
             self.agent_n.actor.rnn_hidden = None
             self.agent_n.critic.rnn_hidden = None
         for episode_step in range(self.args.episode_limit):
+            # In MPE, global state is the concatenation of all agents' local obs.
+            obs_n = [np.append(item['individual'],
+                               item['group']) for item in obs_n]
+            obs_n = np.array(obs_n, dtype=np.float32)
+            obs_n = torch.tensor(obs_n, dtype=torch.float32)
             # Get actions and the corresponding log probabilities of N agents
             a_n, a_logprob_n = self.agent_n.choose_action(
                 obs_n, evaluate=evaluate)
-            # In MPE, global state is the concatenation of all agents' local obs.
-            obs_n = [item['individual'] for item in obs_n]
-            obs_n = np.array(obs_n, dtype=np.float32)
-            obs_n = torch.tensor(obs_n, dtype=torch.float32).reshape(5, 10)
             s = np.array(obs_n).flatten()
-            # Get the state values (V(s)) of N agents
+            # Ge,t the state values (V(s)) of N agents
             v_n = self.agent_n.get_value(s)
             obs_next_n, r_n, done_n, _ = self.env.step(a_n)
             episode_reward += r_n[0]
@@ -134,7 +135,8 @@ class Runner_MAPPO_MPE:
         if not evaluate:
             # An episode is over, store v_n in the last step
             # obs_n = obs_n
-            obs_n = [item['individual'] for item in obs_n]
+            obs_n = [np.append(item['individual'],
+                               item['group']) for item in obs_n]
             s = np.array(obs_n).flatten()
             v_n = self.agent_n.get_value(s)
             self.replay_buffer.store_last_value(episode_step + 1, v_n)

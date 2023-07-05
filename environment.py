@@ -182,7 +182,13 @@ class Environment(gym.core.Env):
         return self.WP, self.w
 
     def target_function(self, variable):
-        variable = [variable[i]/sum(variable) for i in range(0, len(variable))]
+        epsilon = 1e-8
+        variable_sum = sum(variable)
+
+        if variable_sum > epsilon:
+            variable = [variable[i] / (variable_sum + epsilon) for i in range(0, len(variable))]
+        else:
+            variable = [variable[i]/sum(variable) for i in range(0, len(variable))]
         WP_s = np.copy(self.WP)
         for i in range(0, self.WP.shape[0]):
             for j in range(0, self.WP.shape[1]):

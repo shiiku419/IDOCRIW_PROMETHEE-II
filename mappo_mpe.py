@@ -7,7 +7,6 @@ from torch.utils.data.sampler import *
 import numpy as np
 
 
-# Trick 8: orthogonal initialization
 def orthogonal_init(layer, gain=1.0):
     for name, param in layer.named_parameters():
         if "bias" in name:
@@ -23,9 +22,8 @@ class Actor_RNN(nn.Module):
 
         self.fc1 = nn.Linear(actor_input_dim, args.rnn_hidden_dim)
         self.rnn = nn.GRUCell(args.rnn_hidden_dim, args.rnn_hidden_dim)
-        # self.fc2 = nn.Linear(args.rnn_hidden_dim, args.action_dim)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim, args.action_dim)
 
-        # Modify this to output mean and log_std for 'thresholds' and 'matrix'
         self.fc_mean_thresholds = nn.Linear(args.rnn_hidden_dim, 5)
         self.fc_log_std_thresholds = nn.Linear(args.rnn_hidden_dim, 5)
         self.fc_mean_matrix = nn.Linear(args.rnn_hidden_dim, 5)
@@ -37,25 +35,26 @@ class Actor_RNN(nn.Module):
             print("------use_orthogonal_init------")
             orthogonal_init(self.fc1)
             orthogonal_init(self.rnn)
-            # orthogonal_init(self.fc2, gain=0.01)
-            orthogonal_init(self.fc_mean_thresholds, gain=0.01)
-            orthogonal_init(self.fc_log_std_thresholds, gain=0.01)
-            orthogonal_init(self.fc_mean_matrix, gain=0.01)
-            orthogonal_init(self.fc_log_std_matrix, gain=0.01)
+            orthogonal_init(self.fc2, gain=0.01)
+            orthogonal_init(self.fc_mean_thresholds)
+            orthogonal_init(self.fc_log_std_thresholds)
+            orthogonal_init(self.fc_mean_matrix)
+            orthogonal_init(self.fc_log_std_matrix)
 
     def forward(self, actor_input):
-        # When 'choose_action': actor_input.shape=(N, actor_input_dim), prob.shape=(N, action_dim)
-        # When 'train':         actor_input.shape=(mini_batch_size*N, actor_input_dim),prob.shape=(mini_batch_size*N, action_dim)
         x = self.activate_func(self.fc1(actor_input))
         self.rnn_hidden = self.rnn(x, self.rnn_hidden)
-        # prob = torch.softmax(self.fc2(self.rnn_hidden), dim=-1)
-        # return prob
 
         # Output mean and log_std for 'thresholds' and 'matrix'
         mean_thresholds = self.fc_mean_thresholds(self.rnn_hidden)
-        log_std_thresholds = self.fc_log_std_thresholds(self.rnn_hidden)
+        
+        # Use softplus activation function for log_std to ensure it is positive
+        log_std_thresholds = F.softplus(self.fc_log_std_thresholds(self.rnn_hidden))
+        
         mean_matrix = self.fc_mean_matrix(self.rnn_hidden)
-        log_std_matrix = self.fc_log_std_matrix(self.rnn_hidden)
+        
+        # Use softplus activation function for log_std to ensure it is positive
+        log_std_matrix = F.softplus(self.fc_log_std_matrix(self.rnn_hidden))
 
         return mean_thresholds, log_std_thresholds, mean_matrix, log_std_matrix
 

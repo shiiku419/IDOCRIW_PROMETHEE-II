@@ -189,14 +189,14 @@ if __name__ == '__main__':
                         default=True, help="Trick 8: orthogonal initialization")
     parser.add_argument("--set_adam_eps", type=float,
                         default=True, help="Trick 9: set Adam epsilon=1e-5")
-    parser.add_argument("--use_relu", type=float, default=False,
+    parser.add_argument("--use_relu", type=float, default=True,
                         help="Whether to use relu, if False, we will use tanh")
     parser.add_argument("--use_rnn", type=bool,
                         default=False, help="Whether to use RNN")
     parser.add_argument("--add_agent_id", type=float, default=False,
                         help="Whether to add agent_id. Here, we do not use it.")
     parser.add_argument("--use_value_clip", type=float,
-                        default=False, help="Whether to use value clip.")
+                        default=True, help="Whether to use value clip.")
 
     args = parser.parse_args()
     runner = Runner_MAPPO_MPE(args, env_name="simple_spread", number=1, seed=0)

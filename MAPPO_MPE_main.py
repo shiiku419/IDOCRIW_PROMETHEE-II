@@ -151,7 +151,7 @@ if __name__ == '__main__':
                         default=int(3e6), help=" Maximum number of training steps")
     parser.add_argument("--episode_limit", type=int, default=25,
                         help="Maximum number of steps per episode")
-    parser.add_argument("--evaluate_freq", type=float, default=5000,
+    parser.add_argument("--evaluate_freq", type=float, default=2500,
                         help="Evaluate the policy every 'evaluate_freq' steps")
     parser.add_argument("--evaluate_times", type=float,
                         default=3, help="Evaluate times")
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     parser.add_argument("--use_relu", type=float, default=True,
                         help="Whether to use relu, if False, we will use tanh")
     parser.add_argument("--use_rnn", type=bool,
-                        default=False, help="Whether to use RNN")
+                        default=True, help="Whether to use RNN")
     parser.add_argument("--add_agent_id", type=float, default=False,
                         help="Whether to add agent_id. Here, we do not use it.")
     parser.add_argument("--use_value_clip", type=float,

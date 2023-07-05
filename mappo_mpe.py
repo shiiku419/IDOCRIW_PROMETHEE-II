@@ -6,6 +6,7 @@ from torch.distributions import Normal
 from torch.utils.data.sampler import *
 import numpy as np
 
+torch.autograd.set_detect_anomaly(True)
 
 def orthogonal_init(layer, gain=1.0):
     for name, param in layer.named_parameters():
@@ -16,12 +17,14 @@ def orthogonal_init(layer, gain=1.0):
 
 
 class Actor_RNN(nn.Module):
-    def __init__(self, args, actor_input_dim):
+    def __init__(self, args, actor_input_dim, dropout_rate=0.5):
         super(Actor_RNN, self).__init__()
         self.rnn_hidden = None
 
         self.fc1 = nn.Linear(actor_input_dim, args.rnn_hidden_dim)
+        self.dropout1 = nn.Dropout(dropout_rate)
         self.rnn = nn.GRUCell(args.rnn_hidden_dim, args.rnn_hidden_dim)
+        self.dropout2 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(args.rnn_hidden_dim, args.action_dim)
 
         self.fc_mean_thresholds = nn.Linear(args.rnn_hidden_dim, 5)
@@ -43,7 +46,9 @@ class Actor_RNN(nn.Module):
 
     def forward(self, actor_input):
         x = self.activate_func(self.fc1(actor_input))
+        x = self.dropout1(x)
         self.rnn_hidden = self.rnn(x, self.rnn_hidden)
+        self.rnn_hidden = self.dropout2(self.rnn_hidden)
 
         # Output mean and log_std for 'thresholds' and 'matrix'
         mean_thresholds = self.fc_mean_thresholds(self.rnn_hidden)
@@ -60,12 +65,14 @@ class Actor_RNN(nn.Module):
 
 
 class Critic_RNN(nn.Module):
-    def __init__(self, args, critic_input_dim):
+    def __init__(self, args, critic_input_dim, dropout_rate=0.5):
         super(Critic_RNN, self).__init__()
         self.rnn_hidden = None
 
         self.fc1 = nn.Linear(critic_input_dim, args.rnn_hidden_dim)
+        self.dropout1 = nn.Dropout(dropout_rate)
         self.rnn = nn.GRUCell(args.rnn_hidden_dim, args.rnn_hidden_dim)
+        self.dropout2 = nn.Dropout(dropout_rate)
         self.fc2 = nn.Linear(args.rnn_hidden_dim, 1)
         self.activate_func = [nn.Tanh(), nn.ReLU()][args.use_relu]
         if args.use_orthogonal_init:
@@ -79,7 +86,9 @@ class Critic_RNN(nn.Module):
         # When 'train':     critic_input.shape=(mini_batch_size*N, critic_input_dim), value.shape=(mini_batch_size*N, 1)
         critic_input = critic_input.float()
         x = self.activate_func(self.fc1(critic_input))
+        x = self.dropout1(x)
         self.rnn_hidden = self.rnn(x, self.rnn_hidden)
+        self.rnn_hidden = self.dropout2(self.rnn_hidden)
         value = self.fc2(self.rnn_hidden)
         return value
 

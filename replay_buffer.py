@@ -86,6 +86,6 @@ class ReplayBuffer:
                 batch[key]['individual'] = individual_data_stacked
                 batch[key]['group'] = group_data_stacked
             else:
-                data = np.array(self.buffer[key], dtype=np.float64)
+                data = np.array(self.buffer[key], dtype=np.float32)
                 batch[key] = torch.from_numpy(data)
         return batch

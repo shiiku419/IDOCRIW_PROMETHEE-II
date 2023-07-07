@@ -8,6 +8,7 @@ import numpy as np
 
 torch.autograd.set_detect_anomaly(True)
 
+
 def orthogonal_init(layer, gain=1.0):
     for name, param in layer.named_parameters():
         if "bias" in name:
@@ -45,21 +46,25 @@ class Actor_RNN(nn.Module):
             orthogonal_init(self.fc_log_std_matrix)
 
     def forward(self, actor_input):
-        x = self.activate_func(self.fc1(actor_input))
+        # print("fc1 weights:", self.fc1.weight.data)
+        # print("fc1 bias:", self.fc1.bias.data)
+
+        # print(actor_input, "input")
+        x = self.fc1(actor_input)
+        # print(x, "fc1")
+        x = self.activate_func(x)
         x = self.dropout1(x)
         self.rnn_hidden = self.rnn(x, self.rnn_hidden)
         self.rnn_hidden = self.dropout2(self.rnn_hidden)
 
         # Output mean and log_std for 'thresholds' and 'matrix'
         mean_thresholds = self.fc_mean_thresholds(self.rnn_hidden)
-        
-        # Use softplus activation function for log_std to ensure it is positive
-        log_std_thresholds = F.softplus(self.fc_log_std_thresholds(self.rnn_hidden))
-        
+        log_std_thresholds = self.fc_log_std_thresholds(self.rnn_hidden)
+        log_std_thresholds = torch.clamp(
+            log_std_thresholds, min=-1, max=1
+        )  # この数値は調整が必要です
         mean_matrix = self.fc_mean_matrix(self.rnn_hidden)
-        
-        # Use softplus activation function for log_std to ensure it is positive
-        log_std_matrix = F.softplus(self.fc_log_std_matrix(self.rnn_hidden))
+        log_std_matrix = self.fc_log_std_matrix(self.rnn_hidden)
 
         return mean_thresholds, log_std_thresholds, mean_matrix, log_std_matrix
 
@@ -91,67 +96,6 @@ class Critic_RNN(nn.Module):
         self.rnn_hidden = self.dropout2(self.rnn_hidden)
         value = self.fc2(self.rnn_hidden)
         return value
-
-
-"""
-class Actor_MLP(nn.Module):
-    def __init__(self, args, actor_input_dim):
-        super(Actor_MLP, self).__init__()
-        self.fc1 = nn.Linear(2, args.mlp_hidden_dim)
-        self.fc2 = nn.Linear(args.mlp_hidden_dim, args.mlp_hidden_dim)
-
-        # Separate output layers for 'thresholds' and 'matrix'
-        # 5 outputs for 'thresholds'
-        self.fc_thresholds = nn.Linear(args.mlp_hidden_dim, 5)
-        # 5*5 outputs for 'matrix'
-        self.fc_matrix = nn.Linear(args.mlp_hidden_dim, 5)
-
-        self.activate_func = [nn.Tanh(), nn.ReLU()][args.use_relu]
-
-        if args.use_orthogonal_init:
-            print("------use_orthogonal_init------")
-            orthogonal_init(self.fc1)
-            orthogonal_init(self.fc2)
-            orthogonal_init(self.fc_thresholds)
-            orthogonal_init(self.fc_matrix, gain=0.01)
-
-    def forward(self, actor_input):
-        actor_input = actor_input.float()
-        x = self.activate_func(self.fc1(actor_input))
-        x = self.activate_func(self.fc2(x))
-
-        # Applying the appropriate activation functions to limit the ranges
-        thresholds = torch.sigmoid(
-            self.fc_thresholds(x)) * 10  # Scaled to [0, 10]
-        # Scaled to [0, 1] and reshaped to (5, 5)
-        matrix = torch.sigmoid(self.fc_matrix(x)).view(-1, 5,)
-
-        # Return as a dictionary
-        return {'thresholds': thresholds, 'matrix': matrix}
-
-
-class Critic_MLP(nn.Module):
-    def __init__(self, args, critic_input_dim):
-        super(Critic_MLP, self).__init__()
-        self.fc1 = nn.Linear(critic_input_dim, args.mlp_hidden_dim)
-        self.fc2 = nn.Linear(args.mlp_hidden_dim, args.mlp_hidden_dim)
-        self.fc3 = nn.Linear(args.mlp_hidden_dim, critic_input_dim)
-        self.activate_func = [nn.Tanh(), nn.ReLU()][args.use_relu]
-        if args.use_orthogonal_init:
-            print("------use_orthogonal_init------")
-            orthogonal_init(self.fc1)
-            orthogonal_init(self.fc2)
-            orthogonal_init(self.fc3)
-
-    def forward(self, critic_input):
-        # When 'get_value': critic_input.shape=(N, critic_input_dim), value.shape=(N, 1)
-        # When 'train':     critic_input.shape=(mini_batch_size, episode_limit, N, critic_input_dim), value.shape=(mini_batch_size, episode_limit, N, 1)
-        critic_input = critic_input.float()
-        x = self.activate_func(self.fc1(critic_input))
-        x = self.activate_func(self.fc2(x))
-        value = self.fc3(x)
-        return value
-"""
 
 
 class MAPPO_MPE:
@@ -339,13 +283,17 @@ class MAPPO_MPE:
 
                         # Calculate standard deviation
                         std = torch.exp(mini_batch_log_std_thresholds)
-
+                        # print(actor_inputs)
+                        # print(mini_batch_mean_thresholds)
+                        # print(std)
                         # Create distribution for the current mini-batch
                         dist_now = torch.distributions.Normal(
                             mini_batch_mean_thresholds, std
                         )
                         # Corrected log probability calculation
                         actions = batch["a_n"]["thresholds"].view(-1, 5)[index]
+                        # print(actions, "action")
+                        # nan error
                         log_prob = dist_now.log_prob(actions)
                         probs_now.append(
                             log_prob.reshape(self.mini_batch_size, self.N, -1)
@@ -381,6 +329,7 @@ class MAPPO_MPE:
                     probs_now = dist_now.log_prob(batch["a_n"]["thresholds"][index])
 
                 # Corrected entropy calculation
+                # nan error
                 dist_entropy = 0.5 + 0.5 * torch.log(2 * torch.tensor(np.pi) * std**2)
                 a_logprob_n_now = probs_now
                 batch_slice = (
@@ -413,6 +362,7 @@ class MAPPO_MPE:
                         - v_target[index]
                     )
                     values_error_original = values_now - v_target[index]
+                    # nan error
                     critic_loss = torch.max(
                         values_error_clip**2, values_error_original**2
                     )
